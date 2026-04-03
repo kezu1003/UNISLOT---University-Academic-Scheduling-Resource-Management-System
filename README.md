@@ -1,132 +1,60 @@
-# 🎓 Modern University Scheduling & Resource Management System
+# 🎓 UniSlot - SLIIT Timetable Management System
 
-A web-based university scheduling and resource management dashboard designed to automate hall allocation, lecture rescheduling, and instructor workload management.
+A comprehensive timetable management system for SLIIT Computing Faculty.
 
----
+## Features
 
-## 📌 Project Overview
+### Admin Panel
+- ✅ Upload staff from TXT file
+- ✅ Set priority (High → Low)
+- ✅ Add batch groups (Y1.S1.WD.IT.03.02 format)
+- ✅ Add courses with hours allocation
+- ✅ Manage lecture halls
 
-Manual timetable management in universities often leads to:
+### LIC Panel
+- ✅ View assigned courses
+- ✅ Select instructors (priority-based)
+- ✅ Check staff workload
+- ✅ Submit to coordinator
 
-- Hall allocation conflicts  
-- Instructor overload  
-- Inefficient lecture rescheduling  
-- Poor communication with students  
+### Coordinator Panel
+- ✅ Review LIC assignments
+- ✅ Schedule classes with conflict detection
+- ✅ Set timetable with drag-drop grid
+- ✅ Check all staff workload
+- ✅ Publish timetable with email notifications
+- ✅ Export to PDF
 
-This system provides a centralized admin dashboard to streamline scheduling and resource management operations.
+### Smart Features
+- 🏫 Hall allocation with batch size check
+- 📍 Lecturer's nearest location matching
+- ⚠️ Lecture and tutorial same day/time prevention
+- 📊 Workload visualization
+- 📧 Email notifications to students
+- 📄 PDF timetable export
 
----
+## Tech Stack
 
-## 🚀 Key Features
+- **Frontend:** React 18, React Router, Recharts, jsPDF
+- **Backend:** Node.js, Express.js
+- **Database:** MongoDB with Mongoose
+- **Styling:** Custom CSS with CSS Variables
+- **Email:** Nodemailer
+- **PDF:** PDFKit (backend), jsPDF (frontend)
 
-### 🏫 1. Hall Allocation Module
-- Check batch size before assigning halls
-- Display hall capacity and availability
-- Show lecturer’s nearest location
-- Detect scheduling conflicts:
-  - Lecture and tutorial at the same time
-  - Lecture and tutorial on the same day
-- Visual conflict warnings and alerts
+## Installation
 
----
-
-### 🔄 2. Online Lecture Rescheduling Module
-- Select specialization and semester
-- Choose current lecture time and new time
-- Auto-generate email notifications
-- Preview email before sending to students
-
----
-
-### 🏢 3. Physical Lecture Rescheduling Module
-- Display lecturer available time slots
-- Allocate new time slot
-- Automatically update timetable
-- Send updated timetable to coordinator
-
----
-
-### 👨‍🏫 4. Instructor Allocation Module
-- Display 3 prioritized instructors
-- Show weekly workload hours
-- Prevent workload overload
-- Assign instructor to subjects
-- Workload summary dashboard
-
----
-
-## 🎨 System Design
-
-- Clean modern UI
-- University-themed (Blue & White)
-- Sidebar navigation
-- Dashboard statistic cards
-- Calendar timetable view
-- Responsive design
-- Tables, dropdowns, modals, alerts
-- Admin-style layout
-
----
-
-## 🛠️ Technology Stack
-
-**Frontend:**
-- React / HTML / CSS / JavaScript
-
-**Backend:**
-- Node.js 
-
-**Database:**
+### Prerequisites
+- Node.js 18+
 - MongoDB
+- npm or yarn
 
-**Other Integrations:**
-- SMTP Email Service
-- Role-based Authentication
+### Backend Setup
 
----
-
-## 👥 Team Roles & Responsibilities
-
-| Member | Main Responsibility |
-|--------|---------------------|
-| Member 1 | Hall Allocation & Conflict Detection |
-| Member 2 | Lecture Rescheduling System |
-| Member 3 | Instructor Allocation & Workload Management |
-| Member 4 | Dashboard UI/UX & Database Integration |
-
-**Shared Responsibilities:**  
-Testing, documentation, and final presentation.
-
----
-
-## 📅 Project Timeline
-
-1. Requirement Analysis  
-2. UI/UX Design  
-3. Database Design  
-4. Module Development  
-5. Integration  
-6. Testing  
-7. Deployment  
-
----
-
-## 🎯 Expected Outcomes
-
-- Automated conflict-free scheduling
-- Balanced instructor workload
-- Efficient resource utilization
-- Improved administrative efficiency
-- Enhanced communication with students
-
----
-
-## 📄 License
-
-This project is developed for academic purposes (IT3040 – IT Project Management).
-
----
-
-## 📬 Contact
-
-For academic inquiries, please contact the project team.
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Edit .env with your configuration
+npm run seed  # Seed database
+npm run dev   # Start development server
