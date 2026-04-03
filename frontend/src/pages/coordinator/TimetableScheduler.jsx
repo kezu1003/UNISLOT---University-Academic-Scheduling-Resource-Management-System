@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { coordinatorAPI, adminAPI } from '../../services/api';
 import { toast } from 'react-toastify';
+import HallAvailabilityPanel from '../../components/common/HallAvailabilityPanel';
 import './TimetableScheduler.css';
 
 // Constants
@@ -516,6 +517,12 @@ const TimetableScheduler = () => {
     setShowDeleteModal(true);
   };
 
+  const handleAvailabilitySelect = (hall) => {
+    setFormData((prev) => ({ ...prev, hall: hall._id }));
+    setTouched((prev) => ({ ...prev, hall: true }));
+    setErrors((prev) => ({ ...prev, hall: '' }));
+  };
+
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -938,6 +945,25 @@ const TimetableScheduler = () => {
                 </div>
               )}
 
+              <HallAvailabilityPanel
+                compact
+                title="Hall / Lab Availability"
+                description="Check live hall availability for the selected schedule slot and choose a free space directly."
+                fetchAvailability={(params) => coordinatorAPI.getHallAvailability({
+                  ...params,
+                  excludeEntryId: editMode ? editingId : undefined
+                })}
+                initialFilters={{
+                  day: formData.day,
+                  startTime: formData.startTime,
+                  endTime: formData.endTime
+                }}
+                batchId={formData.batch || undefined}
+                batchSize={selectedBatchData?.studentCount}
+                selectedHallId={formData.hall}
+                onSelectHall={handleAvailabilitySelect}
+              />
+
               {selectedBatchData && selectedHallData && !hallCapacityError && (
                 <div className="duration-display">
                   <FiUsers />
@@ -1092,6 +1118,3 @@ const TimetableScheduler = () => {
 };
 
 export default TimetableScheduler;
-
-
-
