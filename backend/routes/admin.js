@@ -420,6 +420,89 @@ router.get('/halls', async (req, res) => {
   }
 });
 
+// @route   PUT /api/admin/halls/:id
+// @desc    Update hall
+// @access  Admin only
+router.put('/halls/:id', [
+  body('hallCode').optional().notEmpty().withMessage('Hall code is required'),
+  body('hallName').optional().notEmpty().withMessage('Hall name is required'),
+  body('capacity').optional().isInt({ min: 1 }).withMessage('Capacity must be positive'),
+  body('location').optional().notEmpty().withMessage('Location is required'),
+  body('type').optional().isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const hall = await Hall.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!hall) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hall not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: hall
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hall with this code already exists'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating hall',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/admin/halls/:id
+// @desc    Delete hall (soft delete)
+// @access  Admin only
+router.delete('/halls/:id', async (req, res) => {
+  try {
+    const hall = await Hall.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!hall) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hall not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Hall deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting hall',
+      error: error.message
+    });
+  }
+});
+
 // ==================== COURSE MANAGEMENT ====================
 
 // @route   POST /api/admin/courses
