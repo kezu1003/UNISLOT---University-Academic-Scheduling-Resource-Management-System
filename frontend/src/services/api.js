@@ -80,6 +80,7 @@ export const adminAPI = {
 export const licAPI = {
   getCourses: () => api.get('/lic/courses'),
   getStaff: (params) => api.get('/lic/staff', { params }),
+  getHallAvailability: (params) => api.get('/lic/hall-availability', { params }),
   assignInstructors: (courseId, data) => 
     api.put(`/lic/courses/${courseId}/instructors`, data),
   getStaffWorkload: (staffId) => api.get(`/lic/staff/${staffId}/workload`)
@@ -92,6 +93,7 @@ export const coordinatorAPI = {
   createTimetable: (data) => api.post('/coordinator/timetable', data),
   updateTimetable: (id, data) => api.put(`/coordinator/timetable/${id}`, data),
   deleteTimetable: (id) => api.delete(`/coordinator/timetable/${id}`),
+  getHallAvailability: (params) => api.get('/coordinator/hall-availability', { params }),
   publishTimetable: (data) => api.post('/coordinator/timetable/publish', data),
   getConflicts: () => api.get('/coordinator/timetable/conflicts'),
   
