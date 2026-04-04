@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const { protect, authorize } = require('../middleware/auth');
 const Course = require('../models/Course');
 const Staff = require('../models/Staff');
+const { getHallAvailability } = require('../utils/hallAvailability');
 
 // All routes are protected and only for LIC
 router.use(protect);
@@ -73,6 +74,32 @@ router.get('/staff', async (req, res) => {
       success: false,
       message: 'Error fetching staff',
       error: error.message
+    });
+  }
+});
+
+// @route   GET /api/lic/hall-availability
+// @desc    Get hall or lab availability for a selected time slot
+// @access  LIC only
+router.get('/hall-availability', async (req, res) => {
+  try {
+    const availability = await getHallAvailability({
+      day: req.query.day,
+      startTime: req.query.startTime,
+      endTime: req.query.endTime,
+      type: req.query.type,
+      location: req.query.location,
+      batchId: req.query.batchId
+    });
+
+    res.json({
+      success: true,
+      data: availability
+    });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error fetching hall availability'
     });
   }
 });
