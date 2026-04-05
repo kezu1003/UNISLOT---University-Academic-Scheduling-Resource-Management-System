@@ -1,0 +1,29 @@
+.table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.table th.sortable:hover {
+  background-color: var(--neutral-200);
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.sort-icon {
+  display: flex;
+  color: var(--primary-600);
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--text-tertiary);
+  padding: var(--spacing-8) !important;
+}
+
+.table tbody tr.clickable {
+  cursor: pointer;
+}

@@ -1,0 +1,29 @@
+.input-wrapper {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+}
+
+.input-icon.left {
+  left: 12px;
+}
+
+.input-icon.right {
+  right: 12px;
+}
+
+.form-input.has-icon-left {
+  padding-left: 40px;
+}
+
+.form-input.has-icon-right {
+  padding-right: 40px;
+}
