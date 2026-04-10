@@ -1,677 +1,494 @@
 // BatchManagement.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  FiPlus, FiSearch, FiEdit2, FiTrash2, FiUsers,
-  FiFilter, FiDownload, FiCalendar, FiAlertCircle,
-  FiCheck, FiInfo, FiX, FiAlertTriangle
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  FiPlus, FiEdit2, FiTrash2, FiUsers, FiFilter,
+  FiAlertCircle, FiCheck, FiInfo, FiAlertTriangle,
+  FiCalendar, FiGrid, FiRefreshCw, FiLayers
 } from 'react-icons/fi';
-import { Card, CardHeader, CardBody } from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
-import Table from '../../components/common/Table';
-import Modal from '../../components/common/Modal';
-import Badge from '../../components/common/Badge';
+import Modal   from '../../components/common/Modal';
+import Button  from '../../components/common/Button';
+import Badge   from '../../components/common/Badge';
+import Table   from '../../components/common/Table';
 import { adminAPI } from '../../services/api';
-import { 
-  SPECIALIZATIONS, YEARS, SEMESTERS, BATCH_TYPES 
+import {
+  SPECIALIZATIONS, YEARS, SEMESTERS, BATCH_TYPES
 } from '../../utils/constants';
 import { generateBatchCode } from '../../utils/helpers';
 import { toast } from 'react-toastify';
 import './BatchManagement.css';
 
-// Validation Rules
-const VALIDATION_RULES = {
-  year: {
-    required: true,
-    message: 'Please select a year',
-    validate: (value) => {
-      const num = parseInt(value);
-      if (isNaN(num) || num < 1 || num > 4) {
-        return 'Year must be between 1 and 4';
-      }
-      return null;
-    }
-  },
-  semester: {
-    required: true,
-    message: 'Please select a semester',
-    validate: (value) => {
-      const num = parseInt(value);
-      if (isNaN(num) || num < 1 || num > 2) {
-        return 'Semester must be 1 or 2';
-      }
-      return null;
-    }
-  },
-  type: {
-    required: true,
-    message: 'Please select a batch type'
-  },
-  specialization: {
-    required: true,
-    message: 'Please select a specialization'
-  },
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const RULES = {
+  year:           { required: true, validate: v => (!v ? 'Year is required' : null) },
+  semester:       { required: true, validate: v => (!v ? 'Semester is required' : null) },
+  type:           { required: true, validate: v => (!v ? 'Batch type is required' : null) },
+  specialization: { required: true, validate: v => (!v ? 'Specialization is required' : null) },
   mainGroup: {
     required: true,
-    message: 'Main group is required',
-    pattern: /^\d{2}$/,
-    patternMessage: 'Main group must be exactly 2 digits (e.g., 01)',
-    validate: (value) => {
-      if (!value) return 'Main group is required';
-      if (!/^\d{2}$/.test(value)) return 'Must be exactly 2 digits';
-      const num = parseInt(value);
-      if (num < 1 || num > 99) return 'Must be between 01 and 99';
+    validate: v => {
+      if (!v)           return 'Main group is required';
+      if (!/^\d{2}$/.test(v)) return 'Must be exactly 2 digits (e.g. 01)';
+      const n = parseInt(v, 10);
+      if (n < 1 || n > 99) return 'Must be between 01 – 99';
       return null;
     }
   },
   subGroup: {
     required: true,
-    message: 'Sub group is required',
-    pattern: /^\d{2}$/,
-    patternMessage: 'Sub group must be exactly 2 digits (e.g., 01)',
-    validate: (value) => {
-      if (!value) return 'Sub group is required';
-      if (!/^\d{2}$/.test(value)) return 'Must be exactly 2 digits';
-      const num = parseInt(value);
-      if (num < 1 || num > 99) return 'Must be between 01 and 99';
+    validate: v => {
+      if (!v)           return 'Sub group is required';
+      if (!/^\d{2}$/.test(v)) return 'Must be exactly 2 digits (e.g. 01)';
+      const n = parseInt(v, 10);
+      if (n < 1 || n > 99) return 'Must be between 01 – 99';
       return null;
     }
   },
   studentCount: {
     required: true,
-    message: 'Student count is required',
-    min: 1,
-    max: 500,
-    validate: (value) => {
-      const num = parseInt(value);
-      if (isNaN(num)) return 'Student count must be a number';
-      if (num < 1) return 'Minimum 1 student required';
-      if (num > 500) return 'Maximum 500 students allowed';
+    validate: v => {
+      const n = parseInt(v, 10);
+      if (!v && v !== 0) return 'Student count is required';
+      if (isNaN(n))     return 'Must be a number';
+      if (n < 1)        return 'Minimum 1 student';
+      if (n > 500)      return 'Maximum 500 students';
       return null;
     }
   }
 };
 
-// Initial States
-const INITIAL_FORM_DATA = {
-  year: 1,
-  semester: 1,
-  type: 'WD',
-  specialization: 'IT',
-  mainGroup: '01',
-  subGroup: '01',
-  studentCount: 30
+const BLANK_FORM = {
+  year: 1, semester: 1, type: 'WD',
+  specialization: 'IT', mainGroup: '01', subGroup: '01', studentCount: 30
 };
 
-const INITIAL_ERRORS = {
-  year: '',
-  semester: '',
-  type: '',
-  specialization: '',
-  mainGroup: '',
-  subGroup: '',
-  studentCount: '',
-  batchCode: '',
-  general: ''
-};
+const BLANK_ERRORS  = Object.fromEntries([
+  ...Object.keys(RULES).map(k => [k, '']), ['general', ''], ['batchCode', '']
+]);
+const BLANK_TOUCHED = Object.fromEntries(Object.keys(RULES).map(k => [k, false]));
 
-const INITIAL_TOUCHED = {
-  year: false,
-  semester: false,
-  type: false,
-  specialization: false,
-  mainGroup: false,
-  subGroup: false,
-  studentCount: false
-};
+// ─── Small reusable field components ─────────────────────────────────────────
 
-// Validated Input Component
-const ValidatedInput = ({
-  label,
-  name,
-  type = 'text',
-  value,
-  onChange,
-  onBlur,
-  error,
-  touched,
-  required = false,
-  disabled = false,
-  placeholder,
-  hint,
-  min,
-  max,
-  maxLength
-}) => {
-  const showError = touched && error;
-  const showSuccess = touched && !error && value !== '';
-
+const FieldWrap = ({ name, label, required, error, touched, success, hint, children }) => {
+  const showErr = touched && error;
+  const showOk  = touched && !error && success;
   return (
-    <div className={`form-group ${showError ? 'has-error' : ''} ${showSuccess ? 'has-success' : ''}`}>
-      <label htmlFor={name} className={`form-label ${required ? 'required' : ''}`}>
-        {label}
-      </label>
-      <div className="input-wrapper">
-        <input
-          type={type}
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          disabled={disabled}
-          placeholder={placeholder}
-          min={min}
-          max={max}
-          maxLength={maxLength}
-          className={`form-input ${showError ? 'error' : ''} ${showSuccess ? 'success' : ''}`}
-        />
-        {showError && <FiAlertCircle className="input-icon-right error" />}
-        {showSuccess && <FiCheck className="input-icon-right success" />}
-      </div>
-      {showError && (
-        <span className="form-error">
-          <FiAlertCircle size={12} /> {error}
+    <div className={`bm-field ${showErr ? 'is-error' : ''} ${showOk ? 'is-success' : ''}`}>
+      {label && (
+        <label htmlFor={name}>
+          {label}{required && <span className="bm-required"> *</span>}
+        </label>
+      )}
+      {children}
+      {showErr && (
+        <span className="bm-field-error">
+          <FiAlertCircle size={11} /> {error}
         </span>
       )}
-      {hint && !showError && (
-        <span className="form-hint">
-          <FiInfo size={12} /> {hint}
+      {hint && !showErr && (
+        <span className="bm-field-hint">
+          <FiInfo size={11} /> {hint}
         </span>
       )}
     </div>
   );
 };
 
-// Validated Select Component
-const ValidatedSelect = ({
-  label,
-  name,
-  value,
-  onChange,
-  onBlur,
-  options = [],
-  error,
-  touched,
-  required = false,
-  disabled = false,
-  placeholder = 'Select...'
-}) => {
-  const showError = touched && error;
-  const showSuccess = touched && !error && value !== '';
-
+const BMInput = ({ name, label, type = 'text', value, onChange, onBlur,
+                   error, touched, required, hint, min, max, maxLength, placeholder }) => {
+  const showErr = touched && error;
+  const showOk  = touched && !error && String(value) !== '';
   return (
-    <div className={`form-group ${showError ? 'has-error' : ''} ${showSuccess ? 'has-success' : ''}`}>
-      <label htmlFor={name} className={`form-label ${required ? 'required' : ''}`}>
-        {label}
-      </label>
-      <div className="input-wrapper">
+    <FieldWrap name={name} label={label} required={required}
+               error={error} touched={touched} success={showOk} hint={hint}>
+      <div className="bm-input-wrap">
+        <input
+          id={name} name={name} type={type}
+          value={value} onChange={onChange} onBlur={onBlur}
+          placeholder={placeholder} min={min} max={max} maxLength={maxLength}
+          className={`bm-input ${showErr ? 'is-error' : ''} ${showOk ? 'is-success' : ''}`}
+        />
+        {showErr && <FiAlertCircle className="bm-input-icon bm-input-icon--error" size={15} />}
+        {showOk  && <FiCheck       className="bm-input-icon bm-input-icon--success" size={15} />}
+      </div>
+    </FieldWrap>
+  );
+};
+
+const BMSelect = ({ name, label, value, onChange, onBlur, options = [],
+                    error, touched, required, placeholder }) => {
+  const showErr = touched && error;
+  const showOk  = touched && !error && String(value) !== '';
+  return (
+    <FieldWrap name={name} label={label} required={required}
+               error={error} touched={touched} success={showOk}>
+      <div className="bm-input-wrap">
         <select
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          disabled={disabled}
-          className={`form-select ${showError ? 'error' : ''} ${showSuccess ? 'success' : ''}`}
+          id={name} name={name} value={value}
+          onChange={onChange} onBlur={onBlur}
+          className={`bm-field-select ${showErr ? 'is-error' : ''} ${showOk ? 'is-success' : ''}`}
         >
           {placeholder && <option value="">{placeholder}</option>}
-          {options.map((opt, idx) => (
-            <option key={opt.value || idx} value={opt.value}>
-              {opt.label}
-            </option>
+          {options.map((o, i) => (
+            <option key={o.value ?? i} value={o.value}>{o.label}</option>
           ))}
         </select>
-        {showError && <FiAlertCircle className="input-icon-right error" />}
-        {showSuccess && <FiCheck className="input-icon-right success" />}
+        {showErr && <FiAlertCircle className="bm-input-icon bm-input-icon--error" size={15} />}
+        {showOk  && <FiCheck       className="bm-input-icon bm-input-icon--success" size={15} />}
       </div>
-      {showError && (
-        <span className="form-error">
-          <FiAlertCircle size={12} /> {error}
-        </span>
-      )}
+    </FieldWrap>
+  );
+};
+
+// ─── Progress Bar ─────────────────────────────────────────────────────────────
+
+const FormProgress = ({ formData, errors }) => {
+  const fields  = Object.keys(RULES);
+  const valid   = fields.filter(f => !errors[f] && String(formData[f]) !== '').length;
+  const pct     = Math.round((valid / fields.length) * 100);
+  const done    = pct === 100;
+  return (
+    <div className="bm-progress">
+      <div className="bm-progress__head">
+        <span>Form Completion</span>
+        <span className="bm-progress__pct">{pct}%</span>
+      </div>
+      <div className="bm-progress__track">
+        <div
+          className={`bm-progress__fill ${done ? 'bm-progress__fill--done' : ''}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="bm-progress__sub">{valid} of {fields.length} fields valid</span>
     </div>
   );
 };
 
-// Form Progress Component
-const FormProgress = ({ formData, requiredFields, errors }) => {
-  const validFields = requiredFields.filter(field => {
-    const value = formData[field];
-    const hasError = errors[field];
-    const hasValue = value !== '' && value !== null && value !== undefined;
-    return hasValue && !hasError;
-  }).length;
-  
-  const percentage = Math.round((validFields / requiredFields.length) * 100);
+// ─── Code Preview ─────────────────────────────────────────────────────────────
 
-  return (
-    <div className="form-progress">
-      <div className="progress-header">
-        <span className="progress-label">Form Completion</span>
-        <span className="progress-percentage">{percentage}%</span>
-      </div>
-      <div className="progress-track">
-        <div 
-          className={`progress-fill ${percentage === 100 ? 'complete' : ''}`}
-          style={{ width: `${percentage}%` }}
-        ></div>
-      </div>
-      <span className="progress-text">{validFields} of {requiredFields.length} fields completed</span>
-    </div>
+const CodePreview = ({ formData, isValid, isDuplicate }) => {
+  const code = generateBatchCode(
+    formData.year, formData.semester, formData.type,
+    formData.specialization, formData.mainGroup, formData.subGroup
   );
-};
-
-// Batch Code Preview Component
-const BatchCodePreview = ({ formData, isValid, isDuplicate }) => {
-  const batchCode = generateBatchCode(
-    formData.year,
-    formData.semester,
-    formData.type,
-    formData.specialization,
-    formData.mainGroup,
-    formData.subGroup
-  );
-
   return (
-    <div className={`batch-preview ${isDuplicate ? 'duplicate' : ''} ${isValid ? 'valid' : ''}`}>
-      <div className="preview-header">
-        <span className="preview-label">Batch Code Preview</span>
+    <div className={`bm-preview ${isDuplicate ? 'bm-preview--duplicate' : isValid ? 'bm-preview--valid' : ''}`}>
+      <div className="bm-preview__head">
+        <span className="bm-preview__label">Batch Code Preview</span>
         {isValid && !isDuplicate && (
-          <span className="preview-status valid">
-            <FiCheck size={14} /> Valid
-          </span>
+          <span className="bm-preview__badge"><FiCheck size={12} /> Valid</span>
         )}
         {isDuplicate && (
-          <span className="preview-status duplicate">
-            <FiAlertTriangle size={14} /> Already Exists
-          </span>
+          <span className="bm-preview__badge"><FiAlertTriangle size={12} /> Duplicate</span>
         )}
       </div>
-      <span className="preview-code">{batchCode}</span>
-      <div className="preview-breakdown">
-        <span className="code-part" title="Year">Y{formData.year}</span>
-        <span className="code-separator">.</span>
-        <span className="code-part" title="Semester">S{formData.semester}</span>
-        <span className="code-separator">.</span>
-        <span className="code-part" title="Type">{formData.type}</span>
-        <span className="code-separator">.</span>
-        <span className="code-part" title="Specialization">{formData.specialization}</span>
-        <span className="code-separator">.</span>
-        <span className="code-part" title="Main Group">{formData.mainGroup || '??'}</span>
-        <span className="code-separator">.</span>
-        <span className="code-part" title="Sub Group">{formData.subGroup || '??'}</span>
+      <span className="bm-preview__code">{code}</span>
+      <div className="bm-preview__parts">
+        {[
+          { v: `Y${formData.year}`,         t: 'Year' },
+          { v: `S${formData.semester}`,     t: 'Semester' },
+          { v: formData.type,               t: 'Type' },
+          { v: formData.specialization,     t: 'Specialization' },
+          { v: formData.mainGroup || '??',  t: 'Main Group' },
+          { v: formData.subGroup  || '??',  t: 'Sub Group' }
+        ].map((p, i, arr) => (
+          <React.Fragment key={i}>
+            <span className="bm-preview__part" title={p.t}>{p.v}</span>
+            {i < arr.length - 1 && <span className="bm-preview__sep">.</span>}
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );
 };
 
-// Main Component
+// ─── Format Guide ─────────────────────────────────────────────────────────────
+
+const FormatGuide = ({ formData }) => {
+  const segs = [
+    { seg: `Y${formData.year}`,       label: 'Year'  },
+    { seg: `S${formData.semester}`,   label: 'Sem'   },
+    { seg: formData.type,             label: 'Type'  },
+    { seg: formData.specialization,   label: 'Spec'  },
+    { seg: formData.mainGroup||'??',  label: 'Main'  },
+    { seg: formData.subGroup ||'??',  label: 'Sub'   }
+  ];
+  return (
+    <div className="bm-format-guide">
+      <div className="bm-format-guide__title">
+        <FiInfo size={13} /> Batch Code Format
+      </div>
+      <div className="bm-format-guide__parts">
+        {segs.map((s, i, arr) => (
+          <React.Fragment key={i}>
+            <div className="bm-format-guide__item">
+              <span className="bm-format-guide__seg">{s.seg}</span>
+              <span className="bm-format-guide__seg-label">{s.label}</span>
+            </div>
+            {i < arr.length - 1 && <span className="bm-format-guide__dot">.</span>}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 const BatchManagement = () => {
-  // Data State
-  const [batches, setBatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    year: '',
-    semester: '',
-    type: '',
-    specialization: ''
-  });
 
-  // Modal states
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState(null);
+  // ── state ─────────────────────────────────────────────────────────────────
+  const [batches,    setBatches]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [filters,    setFilters]    = useState({ year:'', semester:'', type:'', specialization:'' });
 
-  // Form state
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
-  const [errors, setErrors] = useState(INITIAL_ERRORS);
-  const [touched, setTouched] = useState(INITIAL_TOUCHED);
+  const [showAdd,    setShowAdd]    = useState(false);
+  const [showEdit,   setShowEdit]   = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [selected,   setSelected]   = useState(null);
+
+  const [form,       setForm]       = useState(BLANK_FORM);
+  const [errors,     setErrors]     = useState(BLANK_ERRORS);
+  const [touched,    setTouched]    = useState(BLANK_TOUCHED);
   const [submitting, setSubmitting] = useState(false);
-  const [formValid, setFormValid] = useState(false);
-  const [isDuplicateBatchCode, setIsDuplicateBatchCode] = useState(false);
+  const [deleting,   setDeleting]   = useState(false);
+  const [isDup,      setIsDup]      = useState(false);
 
-  // Delete state
-  const [deleting, setDeleting] = useState(false);
+  // ── stats ─────────────────────────────────────────────────────────────────
+  const stats = useMemo(() => ({
+    total:         batches.length,
+    weekday:       batches.filter(b => b.type === 'WD').length,
+    weekend:       batches.filter(b => b.type === 'WE').length,
+    totalStudents: batches.reduce((s, b) => s + (b.studentCount || 0), 0)
+  }), [batches]);
 
-  // Stats
-  const [stats, setStats] = useState({
-    total: 0,
-    weekday: 0,
-    weekend: 0,
-    totalStudents: 0
-  });
+  // ── computed: is form valid? ──────────────────────────────────────────────
+  const formValid = useMemo(() => {
+    const hasError = Object.keys(RULES).some(f => {
+      const err = RULES[f].validate(form[f]);
+      return !!err;
+    });
+    return !hasError && !isDup;
+  }, [form, isDup]);
 
-  // Fetch batches
+  // ── fetch batches ─────────────────────────────────────────────────────────
   const fetchBatches = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await adminAPI.getBatches(filters);
-      const batchData = response.data.data || [];
-      
-      setBatches(batchData);
-      
-      // Calculate stats
-      setStats({
-        total: batchData.length,
-        weekday: batchData.filter(b => b.type === 'WD').length,
-        weekend: batchData.filter(b => b.type === 'WE').length,
-        totalStudents: batchData.reduce((sum, b) => sum + (b.studentCount || 0), 0)
-      });
-    } catch (error) {
-      console.error('Error fetching batches:', error);
-      toast.error('Failed to fetch batches');
+      const res = await adminAPI.getBatches(filters);
+      setBatches(res.data.data || []);
+    } catch {
+      toast.error('Failed to load batches');
     } finally {
       setLoading(false);
     }
   }, [filters]);
 
-  useEffect(() => {
-    fetchBatches();
-  }, [fetchBatches]);
+  useEffect(() => { fetchBatches(); }, [fetchBatches]);
 
-  // Validate form on data change
+  // ── duplicate check ───────────────────────────────────────────────────────
   useEffect(() => {
-    const isValid = validateFormSilent();
-    setFormValid(isValid && !isDuplicateBatchCode);
-  }, [formData, isDuplicateBatchCode]);
-
-  // Check for duplicate batch code
-  useEffect(() => {
-    const currentBatchCode = generateBatchCode(
-      formData.year,
-      formData.semester,
-      formData.type,
-      formData.specialization,
-      formData.mainGroup,
-      formData.subGroup
+    const code = generateBatchCode(
+      form.year, form.semester, form.type,
+      form.specialization, form.mainGroup, form.subGroup
     );
-
-    const exists = batches.some(batch => 
-      batch.batchCode === currentBatchCode && 
-      (!selectedBatch || batch._id !== selectedBatch._id)
+    const dup = batches.some(b =>
+      b.batchCode === code && (!selected || b._id !== selected._id)
     );
+    setIsDup(dup);
+    setErrors(prev => ({ ...prev, batchCode: dup ? 'This batch code already exists' : '' }));
+  }, [form, batches, selected]);
 
-    setIsDuplicateBatchCode(exists);
-    
-    if (exists) {
-      setErrors(prev => ({ ...prev, batchCode: 'This batch code already exists' }));
-    } else {
-      setErrors(prev => ({ ...prev, batchCode: '' }));
-    }
-  }, [formData, batches, selectedBatch]);
-
-  // Validation Functions
+  // ── field validation ──────────────────────────────────────────────────────
   const validateField = useCallback((name, value) => {
-    const rule = VALIDATION_RULES[name];
+    const rule = RULES[name];
     if (!rule) return '';
-
-    // Required check
-    if (rule.required && (value === '' || value === null || value === undefined)) {
-      return rule.message;
-    }
-
-    // Pattern check
-    if (rule.pattern && typeof value === 'string' && !rule.pattern.test(value)) {
-      return rule.patternMessage || 'Invalid format';
-    }
-
-    // Min/Max for numbers
-    if (rule.min !== undefined && Number(value) < rule.min) {
-      return `Minimum value is ${rule.min}`;
-    }
-    if (rule.max !== undefined && Number(value) > rule.max) {
-      return `Maximum value is ${rule.max}`;
-    }
-
-    // Custom validation
-    if (rule.validate) {
-      const error = rule.validate(value);
-      if (error) return error;
-    }
-
-    return '';
+    return rule.validate(value) || '';
   }, []);
 
-  const validateFormSilent = useCallback(() => {
-    let isValid = true;
-    Object.keys(VALIDATION_RULES).forEach(field => {
-      const error = validateField(field, formData[field]);
-      if (error) isValid = false;
+  const validateAll = useCallback(() => {
+    const newErrors = { ...BLANK_ERRORS };
+    let ok = true;
+    Object.keys(RULES).forEach(f => {
+      const err = validateField(f, form[f]);
+      newErrors[f] = err;
+      if (err) ok = false;
     });
-    return isValid;
-  }, [formData, validateField]);
-
-  const validateForm = useCallback(() => {
-    const newErrors = { ...INITIAL_ERRORS };
-    let isValid = true;
-
-    Object.keys(VALIDATION_RULES).forEach(field => {
-      const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
-        isValid = false;
-      }
-    });
-
-    // Check duplicate
-    if (isDuplicateBatchCode) {
-      newErrors.batchCode = 'This batch code already exists';
-      isValid = false;
-    }
-
+    if (isDup) { newErrors.batchCode = 'This batch code already exists'; ok = false; }
     setErrors(newErrors);
-    setTouched(Object.keys(INITIAL_TOUCHED).reduce((acc, key) => {
-      acc[key] = true;
-      return acc;
-    }, {}));
+    setTouched(Object.fromEntries(Object.keys(RULES).map(k => [k, true])));
+    return ok;
+  }, [form, validateField, isDup]);
 
-    return isValid;
-  }, [formData, validateField, isDuplicateBatchCode]);
+  // ── handlers ──────────────────────────────────────────────────────────────
+  const handleChange = e => {
+    let { name, value } = e.target;
 
-  // Event Handlers
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    let processedValue = value;
-    
-    // Auto-format group inputs to 2 digits
-    if ((name === 'mainGroup' || name === 'subGroup') && value.length <= 2) {
-      processedValue = value.replace(/\D/g, '');
+    // strip non-digits for group fields
+    if (name === 'mainGroup' || name === 'subGroup') {
+      value = value.replace(/\D/g, '').slice(0, 2);
+    }
+    // coerce numeric selects
+    if (['year','semester','studentCount'].includes(name)) {
+      value = value === '' ? '' : (parseInt(value, 10) || value);
     }
 
-    // Convert numeric fields
-    if (name === 'year' || name === 'semester' || name === 'studentCount') {
-      processedValue = value === '' ? '' : parseInt(value) || value;
-    }
-
-    setFormData(prev => ({ ...prev, [name]: processedValue }));
-
-    // Clear error on change
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    setForm(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  const handleBlur = (e) => {
+  const handleBlur = e => {
     const { name, value } = e.target;
-    
-    // Auto-pad group numbers
-    if ((name === 'mainGroup' || name === 'subGroup') && value.length === 1) {
-      setFormData(prev => ({ ...prev, [name]: value.padStart(2, '0') }));
+    // auto-pad groups
+    if ((name === 'mainGroup' || name === 'subGroup') && /^\d$/.test(value)) {
+      setForm(prev => ({ ...prev, [name]: value.padStart(2, '0') }));
     }
-
     setTouched(prev => ({ ...prev, [name]: true }));
-
-    const error = validateField(name, value);
-    setErrors(prev => ({ ...prev, [name]: error }));
+    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
   };
 
-  // Handle form submit
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const resetForm = () => {
+    setForm(BLANK_FORM);
+    setErrors(BLANK_ERRORS);
+    setTouched(BLANK_TOUCHED);
+    setSelected(null);
+    setIsDup(false);
+  };
 
-    if (!validateForm()) {
-      toast.error('Please fix the errors before submitting');
-      return;
-    }
+  const closeModal = () => {
+    setShowAdd(false);
+    setShowEdit(false);
+    resetForm();
+  };
 
-    if (isDuplicateBatchCode) {
-      toast.error('This batch code already exists');
+  const openAdd = () => {
+    resetForm();
+    setShowAdd(true);
+  };
+
+  const openEdit = batch => {
+    setSelected(batch);
+    setForm({
+      year:           batch.year,
+      semester:       batch.semester,
+      type:           batch.type,
+      specialization: batch.specialization,
+      mainGroup:      batch.mainGroup,
+      subGroup:       batch.subGroup,
+      studentCount:   batch.studentCount
+    });
+    setErrors(BLANK_ERRORS);
+    setTouched(BLANK_TOUCHED);
+    setShowEdit(true);
+  };
+
+  const openDelete = batch => {
+    setSelected(batch);
+    setShowDelete(true);
+  };
+
+  // ── submit ────────────────────────────────────────────────────────────────
+  const handleSubmit = async e => {
+    e?.preventDefault();
+    if (!validateAll()) {
+      toast.error('Please fix validation errors before submitting');
       return;
     }
 
     setSubmitting(true);
+    const batchCode = generateBatchCode(
+      form.year, form.semester, form.type,
+      form.specialization, form.mainGroup, form.subGroup
+    );
+    const payload = { batchCode, ...form };
 
     try {
-      const batchCode = generateBatchCode(
-        formData.year,
-        formData.semester,
-        formData.type,
-        formData.specialization,
-        formData.mainGroup,
-        formData.subGroup
-      );
-
-      const payload = {
-        batchCode,
-        year: formData.year,
-        semester: formData.semester,
-        type: formData.type,
-        specialization: formData.specialization,
-        mainGroup: formData.mainGroup,
-        subGroup: formData.subGroup,
-        studentCount: formData.studentCount
-      };
-
-      if (selectedBatch) {
-        await adminAPI.updateBatch(selectedBatch._id, payload);
-        toast.success('Batch updated successfully');
-        setShowEditModal(false);
+      if (selected) {
+        await adminAPI.updateBatch(selected._id, payload);
+        toast.success('Batch updated successfully! ✓');
+        setShowEdit(false);
       } else {
         await adminAPI.createBatch(payload);
-        toast.success('Batch created successfully');
-        setShowAddModal(false);
+        toast.success('Batch created successfully! ✓');
+        setShowAdd(false);
       }
-
       resetForm();
       fetchBatches();
-    } catch (error) {
-      const message = error.response?.data?.message || 'Operation failed';
-      setErrors(prev => ({ ...prev, general: message }));
-      toast.error(message);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Operation failed';
+      setErrors(prev => ({ ...prev, general: msg }));
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle delete
+  // ── delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
-    if (!selectedBatch) return;
-
+    if (!selected) return;
     setDeleting(true);
-
     try {
-      await adminAPI.deleteBatch(selectedBatch._id);
+      await adminAPI.deleteBatch(selected._id);
       toast.success('Batch deleted successfully');
-      setShowDeleteModal(false);
-      setSelectedBatch(null);
+      setShowDelete(false);
+      setSelected(null);
       fetchBatches();
-    } catch (error) {
-      toast.error('Failed to delete batch');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to delete batch';
+      toast.error(msg);
     } finally {
       setDeleting(false);
     }
   };
 
-  // Reset form
-  const resetForm = () => {
-    setFormData(INITIAL_FORM_DATA);
-    setErrors(INITIAL_ERRORS);
-    setTouched(INITIAL_TOUCHED);
-    setSelectedBatch(null);
-    setIsDuplicateBatchCode(false);
-  };
-
-  // Close modal
-  const closeFormModal = () => {
-    setShowAddModal(false);
-    setShowEditModal(false);
-    resetForm();
-  };
-
-  // Open edit modal
-  const openEditModal = (batch) => {
-    setSelectedBatch(batch);
-    setFormData({
-      year: batch.year,
-      semester: batch.semester,
-      type: batch.type,
-      specialization: batch.specialization,
-      mainGroup: batch.mainGroup,
-      subGroup: batch.subGroup,
-      studentCount: batch.studentCount
-    });
-    setErrors(INITIAL_ERRORS);
-    setTouched(INITIAL_TOUCHED);
-    setShowEditModal(true);
-  };
-
-  // Table columns
+  // ── table columns ─────────────────────────────────────────────────────────
   const columns = [
     {
       key: 'batchCode',
       title: 'Batch Code',
-      render: (code) => (
-        <span className="batch-code">{code}</span>
-      )
+      render: code => <span className="bm-batch-code">{code}</span>
     },
     {
       key: 'year',
       title: 'Year',
       width: '80px',
-      render: (year) => <Badge variant="primary">Y{year}</Badge>
+      render: y => <Badge variant="primary">Y{y}</Badge>
     },
     {
       key: 'semester',
       title: 'Semester',
       width: '100px',
-      render: (sem) => <Badge variant="neutral">S{sem}</Badge>
+      render: s => <Badge variant="neutral">S{s}</Badge>
     },
     {
       key: 'type',
       title: 'Type',
-      width: '100px',
-      render: (type) => (
-        <Badge variant={type === 'WD' ? 'success' : 'warning'}>
-          {type === 'WD' ? 'Weekday' : 'Weekend'}
+      width: '110px',
+      render: t => (
+        <Badge variant={t === 'WD' ? 'success' : 'warning'}>
+          {t === 'WD' ? 'Weekday' : 'Weekend'}
         </Badge>
       )
     },
     {
       key: 'specialization',
       title: 'Specialization',
-      width: '120px',
-      render: (spec) => (
-        <Badge variant="primary">{spec}</Badge>
-      )
+      width: '130px',
+      render: s => <Badge variant="primary">{s}</Badge>
     },
     {
       key: 'mainGroup',
       title: 'Group',
-      width: '100px',
-      render: (main, row) => `${main}.${row.subGroup}`
+      width: '90px',
+      render: (m, row) => `${m}.${row.subGroup}`
     },
     {
       key: 'studentCount',
       title: 'Students',
-      width: '100px',
-      render: (count) => (
-        <div className="student-count">
-          <FiUsers size={14} />
-          <span>{count}</span>
+      width: '110px',
+      render: c => (
+        <div className="bm-student-count">
+          <FiUsers size={13} /> {c}
         </div>
       )
     },
@@ -680,411 +497,354 @@ const BatchManagement = () => {
       title: 'Actions',
       width: '100px',
       render: (_, row) => (
-        <div className="action-buttons">
-          <button 
-            className="action-btn" 
-            onClick={() => openEditModal(row)}
-            title="Edit"
+        <div className="bm-actions">
+          <button
+            className="bm-action-btn bm-action-btn--edit"
+            onClick={() => openEdit(row)}
+            title="Edit batch"
           >
-            <FiEdit2 size={16} />
+            <FiEdit2 size={15} />
           </button>
-          <button 
-            className="action-btn danger" 
-            onClick={() => { setSelectedBatch(row); setShowDeleteModal(true); }}
-            title="Delete"
+          <button
+            className="bm-action-btn bm-action-btn--delete"
+            onClick={() => openDelete(row)}
+            title="Delete batch"
           >
-            <FiTrash2 size={16} />
+            <FiTrash2 size={15} />
           </button>
         </div>
       )
     }
   ];
 
-  const requiredFields = ['year', 'semester', 'type', 'specialization', 'mainGroup', 'subGroup', 'studentCount'];
+  // ── Form JSX (shared between Add/Edit) ────────────────────────────────────
+  const renderForm = () => (
+    <form onSubmit={handleSubmit} className="bm-form" noValidate>
 
+      <FormProgress formData={form} errors={errors} />
+
+      {errors.general && (
+        <div className="bm-alert bm-alert--error">
+          <FiAlertCircle className="bm-alert-icon" size={16} />
+          <span>{errors.general}</span>
+        </div>
+      )}
+
+      <CodePreview formData={form} isValid={formValid} isDuplicate={isDup} />
+
+      {isDup && (
+        <div className="bm-alert bm-alert--warning">
+          <FiAlertTriangle className="bm-alert-icon" size={16} />
+          <span>
+            This batch code already exists. Adjust the values to make it unique.
+          </span>
+        </div>
+      )}
+
+      {/* Year & Semester */}
+      <div className="bm-form-grid">
+        <BMSelect
+          name="year" label="Year" required
+          options={YEARS} value={form.year}
+          onChange={handleChange} onBlur={handleBlur}
+          error={errors.year} touched={touched.year}
+          placeholder="Select year"
+        />
+        <BMSelect
+          name="semester" label="Semester" required
+          options={SEMESTERS} value={form.semester}
+          onChange={handleChange} onBlur={handleBlur}
+          error={errors.semester} touched={touched.semester}
+          placeholder="Select semester"
+        />
+      </div>
+
+      {/* Type & Specialization */}
+      <div className="bm-form-grid">
+        <BMSelect
+          name="type" label="Batch Type" required
+          options={BATCH_TYPES} value={form.type}
+          onChange={handleChange} onBlur={handleBlur}
+          error={errors.type} touched={touched.type}
+          placeholder="Select type"
+        />
+        <BMSelect
+          name="specialization" label="Specialization" required
+          options={SPECIALIZATIONS} value={form.specialization}
+          onChange={handleChange} onBlur={handleBlur}
+          error={errors.specialization} touched={touched.specialization}
+          placeholder="Select specialization"
+        />
+      </div>
+
+      {/* Main Group & Sub Group */}
+      <div className="bm-form-grid">
+        <BMInput
+          name="mainGroup" label="Main Group" required
+          placeholder="e.g. 01" value={form.mainGroup}
+          onChange={handleChange} onBlur={handleBlur}
+          error={errors.mainGroup} touched={touched.mainGroup}
+          maxLength={2} hint="2 digits, 01 – 99"
+        />
+        <BMInput
+          name="subGroup" label="Sub Group" required
+          placeholder="e.g. 01" value={form.subGroup}
+          onChange={handleChange} onBlur={handleBlur}
+          error={errors.subGroup} touched={touched.subGroup}
+          maxLength={2} hint="2 digits, 01 – 99"
+        />
+      </div>
+
+      {/* Student Count */}
+      <BMInput
+        name="studentCount" label="Number of Students" type="number"
+        required min={1} max={500}
+        value={form.studentCount}
+        onChange={handleChange} onBlur={handleBlur}
+        error={errors.studentCount} touched={touched.studentCount}
+        hint="Between 1 – 500 students"
+      />
+
+      <FormatGuide formData={form} />
+
+      {/* Summary when ready */}
+      {formValid && (
+        <div className="bm-summary">
+          <div className="bm-summary__title">
+            <FiCheck size={15} /> Ready to {selected ? 'Update' : 'Create'}
+          </div>
+          <div className="bm-summary__grid">
+            <div className="bm-summary__item">
+              <span className="bm-summary__item-label">Batch Code</span>
+              <span className="bm-summary__item-value">
+                <span className="bm-summary__code">
+                  {generateBatchCode(
+                    form.year, form.semester, form.type,
+                    form.specialization, form.mainGroup, form.subGroup
+                  )}
+                </span>
+              </span>
+            </div>
+            <div className="bm-summary__item">
+              <span className="bm-summary__item-label">Students</span>
+              <span className="bm-summary__item-value">{form.studentCount}</span>
+            </div>
+            <div className="bm-summary__item">
+              <span className="bm-summary__item-label">Type</span>
+              <span className="bm-summary__item-value">
+                {form.type === 'WD' ? 'Weekday' : 'Weekend'}
+              </span>
+            </div>
+            <div className="bm-summary__item">
+              <span className="bm-summary__item-label">Specialization</span>
+              <span className="bm-summary__item-value">{form.specialization}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+
+  // ── render ────────────────────────────────────────────────────────────────
   return (
     <div className="batch-management">
+
       {/* Header */}
-      <div className="page-header">
-        <div>
+      <div className="bm-page-header">
+        <div className="bm-page-header__text">
           <h2>Batch Management</h2>
           <p>Manage student batches and groups for SLIIT Computing Faculty</p>
         </div>
-        <div className="header-actions">
-          <Button 
-            variant="primary" 
-            icon={<FiPlus />}
-            onClick={() => { resetForm(); setShowAddModal(true); }}
-          >
+        <div className="bm-header-actions">
+          <Button variant="ghost" icon={<FiRefreshCw />} onClick={fetchBatches}>
+            Refresh
+          </Button>
+          <Button variant="primary" icon={<FiPlus />} onClick={openAdd}>
             Add Batch
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="stats-row">
-        <div className="mini-stat">
-          <div className="mini-stat-icon primary">
-            <FiCalendar size={20} />
+      {/* Stats */}
+      <div className="bm-stats-row">
+        {[
+          { icon: <FiGrid size={20} />,     cls: 'bm-stat-icon--blue',   val: stats.total,         lbl: 'Total Batches'   },
+          { icon: <FiCalendar size={20} />, cls: 'bm-stat-icon--green',  val: stats.weekday,       lbl: 'Weekday Batches' },
+          { icon: <FiCalendar size={20} />, cls: 'bm-stat-icon--amber',  val: stats.weekend,       lbl: 'Weekend Batches' },
+          { icon: <FiUsers size={20} />,    cls: 'bm-stat-icon--purple', val: stats.totalStudents, lbl: 'Total Students'  }
+        ].map((s, i) => (
+          <div key={i} className="bm-stat-card">
+            <div className={`bm-stat-icon ${s.cls}`}>{s.icon}</div>
+            <div className="bm-stat-content">
+              <span className="bm-stat-value">{s.val.toLocaleString()}</span>
+              <span className="bm-stat-label">{s.lbl}</span>
+            </div>
           </div>
-          <div className="mini-stat-content">
-            <span className="value">{stats.total}</span>
-            <span className="label">Total Batches</span>
-          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="bm-filters">
+        <div className="bm-filters__title">
+          <FiFilter size={13} /> Filter Batches
         </div>
-        <div className="mini-stat">
-          <div className="mini-stat-icon success">
-            <FiCalendar size={20} />
-          </div>
-          <div className="mini-stat-content">
-            <span className="value">{stats.weekday}</span>
-            <span className="label">Weekday</span>
-          </div>
-        </div>
-        <div className="mini-stat">
-          <div className="mini-stat-icon warning">
-            <FiCalendar size={20} />
-          </div>
-          <div className="mini-stat-content">
-            <span className="value">{stats.weekend}</span>
-            <span className="label">Weekend</span>
-          </div>
-        </div>
-        <div className="mini-stat">
-          <div className="mini-stat-icon error">
-            <FiUsers size={20} />
-          </div>
-          <div className="mini-stat-content">
-            <span className="value">{stats.totalStudents}</span>
-            <span className="label">Total Students</span>
+        <div className="bm-filters__row">
+          {[
+            { key: 'year',           opts: YEARS,            ph: 'All Years'           },
+            { key: 'semester',       opts: SEMESTERS,        ph: 'All Semesters'       },
+            { key: 'type',           opts: BATCH_TYPES,      ph: 'All Types'           },
+            { key: 'specialization', opts: SPECIALIZATIONS,  ph: 'All Specializations' }
+          ].map(f => (
+            <div key={f.key} className="bm-field">
+              <label htmlFor={`filter-${f.key}`}>
+                {f.key.charAt(0).toUpperCase() + f.key.slice(1)}
+              </label>
+              <select
+                id={`filter-${f.key}`}
+                className="bm-select"
+                value={filters[f.key]}
+                onChange={e => setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
+              >
+                <option value="">{f.ph}</option>
+                {f.opts.map((o, i) => (
+                  <option key={o.value ?? i} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+          <div>
+            <Button
+              variant="ghost"
+              onClick={() => setFilters({ year:'', semester:'', type:'', specialization:'' })}
+            >
+              Clear
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="filters-card">
-        <CardBody>
-          <div className="filters-row">
-            <Select
-              placeholder="All Years"
-              options={YEARS}
-              value={filters.year}
-              onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-            />
-            <Select
-              placeholder="All Semesters"
-              options={SEMESTERS}
-              value={filters.semester}
-              onChange={(e) => setFilters({ ...filters, semester: e.target.value })}
-            />
-            <Select
-              placeholder="All Types"
-              options={BATCH_TYPES}
-              value={filters.type}
-              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-            />
-            <Select
-              placeholder="All Specializations"
-              options={SPECIALIZATIONS}
-              value={filters.specialization}
-              onChange={(e) => setFilters({ ...filters, specialization: e.target.value })}
-            />
-            <Button 
-              variant="ghost" 
-              onClick={() => setFilters({ year: '', semester: '', type: '', specialization: '' })}
-            >
-              Clear Filters
-            </Button>
+      {/* Table */}
+      <div className="bm-table-card">
+        <div className="bm-table-header">
+          <div className="bm-table-header__info">
+            <h3>All Batches</h3>
+            <span>{batches.length} batch{batches.length !== 1 ? 'es' : ''} found</span>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+        <div className="bm-table-wrap">
+          <Table
+            columns={columns}
+            data={batches}
+            loading={loading}
+            emptyMessage={
+              <div className="bm-empty">
+                <div className="bm-empty__icon"><FiLayers size={28} /></div>
+                <h3>No batches found</h3>
+                <p>No batches match your current filters.</p>
+                <Button variant="primary" icon={<FiPlus />} onClick={openAdd}>
+                  Add First Batch
+                </Button>
+              </div>
+            }
+          />
+        </div>
+      </div>
 
-      {/* Batches Table */}
-      <Card>
-        <Table
-          columns={columns}
-          data={batches}
-          loading={loading}
-          emptyMessage="No batches found"
-        />
-      </Card>
-
-      {/* Add/Edit Modal */}
+      {/* ── Add Modal ───────────────────────────────────────────────────────── */}
       <Modal
-        isOpen={showAddModal || showEditModal}
-        onClose={closeFormModal}
-        title={selectedBatch ? 'Edit Batch' : 'Add New Batch'}
+        isOpen={showAdd}
+        onClose={closeModal}
+        title="Add New Batch"
         size="md"
         footer={
           <>
-            <Button 
-              variant="secondary" 
-              onClick={closeFormModal}
-              disabled={submitting}
-            >
+            <Button variant="secondary" onClick={closeModal} disabled={submitting}>
               Cancel
             </Button>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={handleSubmit}
               loading={submitting}
               disabled={!formValid || submitting}
             >
-              {submitting 
-                ? (selectedBatch ? 'Updating...' : 'Creating...') 
-                : (selectedBatch ? 'Update Batch' : 'Create Batch')
-              }
+              {submitting ? 'Creating…' : 'Create Batch'}
             </Button>
           </>
         }
       >
-        <form onSubmit={handleSubmit} className="batch-form" noValidate>
-          {/* Form Progress */}
-          <FormProgress 
-            formData={formData} 
-            requiredFields={requiredFields}
-            errors={errors}
-          />
-
-          {/* General Error */}
-          {errors.general && (
-            <div className="alert alert-error">
-              <FiAlertCircle />
-              <span>{errors.general}</span>
-            </div>
-          )}
-
-          {/* Batch Code Preview */}
-          <BatchCodePreview 
-            formData={formData}
-            isValid={formValid}
-            isDuplicate={isDuplicateBatchCode}
-          />
-
-          {/* Duplicate Warning */}
-          {isDuplicateBatchCode && (
-            <div className="alert alert-warning">
-              <FiAlertTriangle />
-              <span>This batch code already exists. Please modify the values to create a unique batch.</span>
-            </div>
-          )}
-
-          {/* Year & Semester */}
-          <div className="form-grid">
-            <ValidatedSelect
-              label="Year"
-              name="year"
-              options={YEARS}
-              value={formData.year}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.year}
-              touched={touched.year}
-              required
-              placeholder="Select year"
-            />
-            <ValidatedSelect
-              label="Semester"
-              name="semester"
-              options={SEMESTERS}
-              value={formData.semester}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.semester}
-              touched={touched.semester}
-              required
-              placeholder="Select semester"
-            />
-          </div>
-
-          {/* Type & Specialization */}
-          <div className="form-grid">
-            <ValidatedSelect
-              label="Batch Type"
-              name="type"
-              options={BATCH_TYPES}
-              value={formData.type}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.type}
-              touched={touched.type}
-              required
-              placeholder="Select type"
-            />
-            <ValidatedSelect
-              label="Specialization"
-              name="specialization"
-              options={SPECIALIZATIONS}
-              value={formData.specialization}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.specialization}
-              touched={touched.specialization}
-              required
-              placeholder="Select specialization"
-            />
-          </div>
-
-          {/* Main Group & Sub Group */}
-          <div className="form-grid">
-            <ValidatedInput
-              label="Main Group"
-              name="mainGroup"
-              placeholder="e.g., 01"
-              value={formData.mainGroup}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.mainGroup}
-              touched={touched.mainGroup}
-              required
-              maxLength={2}
-              hint="2 digits (01-99)"
-            />
-            <ValidatedInput
-              label="Sub Group"
-              name="subGroup"
-              placeholder="e.g., 01"
-              value={formData.subGroup}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.subGroup}
-              touched={touched.subGroup}
-              required
-              maxLength={2}
-              hint="2 digits (01-99)"
-            />
-          </div>
-
-          {/* Student Count */}
-          <ValidatedInput
-            label="Number of Students"
-            name="studentCount"
-            type="number"
-            min={1}
-            max={500}
-            value={formData.studentCount}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            error={errors.studentCount}
-            touched={touched.studentCount}
-            required
-            hint="Between 1 and 500 students"
-          />
-
-          {/* Batch Code Format Info */}
-          <div className="format-info">
-            <h4>
-              <FiInfo size={14} />
-              Batch Code Format Guide
-            </h4>
-            <div className="format-breakdown">
-              <div className="format-item">
-                <span className="format-label">Year</span>
-                <span className="format-value">Y{formData.year}</span>
-              </div>
-              <span className="format-separator">.</span>
-              <div className="format-item">
-                <span className="format-label">Semester</span>
-                <span className="format-value">S{formData.semester}</span>
-              </div>
-              <span className="format-separator">.</span>
-              <div className="format-item">
-                <span className="format-label">Type</span>
-                <span className="format-value">{formData.type}</span>
-              </div>
-              <span className="format-separator">.</span>
-              <div className="format-item">
-                <span className="format-label">Spec</span>
-                <span className="format-value">{formData.specialization}</span>
-              </div>
-              <span className="format-separator">.</span>
-              <div className="format-item">
-                <span className="format-label">Main</span>
-                <span className="format-value">{formData.mainGroup || '??'}</span>
-              </div>
-              <span className="format-separator">.</span>
-              <div className="format-item">
-                <span className="format-label">Sub</span>
-                <span className="format-value">{formData.subGroup || '??'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Summary */}
-          {formValid && !isDuplicateBatchCode && (
-            <div className="form-summary">
-              <h4><FiCheck /> Ready to Submit</h4>
-              <div className="summary-grid">
-                <div className="summary-item">
-                  <span className="summary-label">Batch Code</span>
-                  <span className="summary-value batch-code-summary">
-                    {generateBatchCode(
-                      formData.year,
-                      formData.semester,
-                      formData.type,
-                      formData.specialization,
-                      formData.mainGroup,
-                      formData.subGroup
-                    )}
-                  </span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">Students</span>
-                  <span className="summary-value">{formData.studentCount}</span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">Type</span>
-                  <span className="summary-value">
-                    {formData.type === 'WD' ? 'Weekday' : 'Weekend'}
-                  </span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">Specialization</span>
-                  <span className="summary-value">{formData.specialization}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </form>
+        {renderForm()}
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* ── Edit Modal ──────────────────────────────────────────────────────── */}
       <Modal
-        isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setSelectedBatch(null); }}
-        title="Confirm Delete"
+        isOpen={showEdit}
+        onClose={closeModal}
+        title="Edit Batch"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              loading={submitting}
+              disabled={!formValid || submitting}
+            >
+              {submitting ? 'Updating…' : 'Update Batch'}
+            </Button>
+          </>
+        }
+      >
+        {renderForm()}
+      </Modal>
+
+      {/* ── Delete Modal ─────────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={showDelete}
+        onClose={() => { setShowDelete(false); setSelected(null); }}
+        title="Delete Batch"
         size="sm"
         footer={
           <>
-            <Button 
-              variant="secondary" 
-              onClick={() => { setShowDeleteModal(false); setSelectedBatch(null); }}
+            <Button
+              variant="secondary"
+              onClick={() => { setShowDelete(false); setSelected(null); }}
               disabled={deleting}
             >
               Cancel
             </Button>
-            <Button 
-              variant="danger" 
+            <Button
+              variant="danger"
               onClick={handleDelete}
               loading={deleting}
             >
-              {deleting ? 'Deleting...' : 'Delete Batch'}
+              {deleting ? 'Deleting…' : 'Yes, Delete'}
             </Button>
           </>
         }
       >
-        <div className="delete-warning">
-          <FiAlertTriangle className="warning-icon" />
-          <p>Are you sure you want to delete this batch?</p>
-          {selectedBatch && (
-            <div className="delete-target-info">
-              <span className="batch-code-delete">{selectedBatch.batchCode}</span>
-              <p>{selectedBatch.studentCount} students assigned</p>
+        <div className="bm-delete-modal">
+          <div className="bm-delete-modal__icon">
+            <FiAlertTriangle size={28} />
+          </div>
+          <h3 className="bm-delete-modal__title">Delete this batch?</h3>
+          <p className="bm-delete-modal__sub">
+            This will permanently remove the batch from the system.
+          </p>
+          {selected && (
+            <div className="bm-delete-target">
+              <span className="bm-delete-target__code">{selected.batchCode}</span>
+              <span className="bm-delete-target__meta">
+                {selected.studentCount} student{selected.studentCount !== 1 ? 's' : ''} assigned
+              </span>
             </div>
           )}
-          <p className="warning-text">This action cannot be undone.</p>
+          <p className="bm-delete-modal__warning">⚠ This action cannot be undone.</p>
         </div>
       </Modal>
+
     </div>
   );
 };

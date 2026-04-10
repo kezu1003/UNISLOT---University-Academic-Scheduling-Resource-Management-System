@@ -351,7 +351,95 @@ router.get('/batches', async (req, res) => {
     });
   }
 });
+// ==================== BATCH UPDATE ====================
+// @route   PUT /api/admin/batches/:id
+// @desc    Update batch
+// @access  Admin only
+router.put('/batches/:id', async (req, res) => {
+  try {
+    const { batchCode, studentCount } = req.body;
 
+    const batch = await Batch.findById(req.params.id);
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Batch not found'
+      });
+    }
+
+    const parts = batchCode.match(
+      /^Y(\d)\.S(\d)\.(WD|WE)\.([A-Z]+)\.(\d{2})\.(\d{2})$/
+    );
+
+    if (!parts) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid batch code format'
+      });
+    }
+
+    const updatedBatch = await Batch.findByIdAndUpdate(
+      req.params.id,
+      {
+        batchCode,
+        year: parseInt(parts[1]),
+        semester: parseInt(parts[2]),
+        type: parts[3],
+        specialization: parts[4],
+        mainGroup: parts[5],
+        subGroup: parts[6],
+        studentCount
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      data: updatedBatch
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Batch with this code already exists'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Error updating batch',
+      error: error.message
+    });
+  }
+});
+
+// ==================== BATCH DELETE ====================
+// @route   DELETE /api/admin/batches/:id
+// @desc    Delete batch (soft delete)
+// @access  Admin only
+router.delete('/batches/:id', async (req, res) => {
+  try {
+    const batch = await Batch.findById(req.params.id);
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Batch not found'
+      });
+    }
+
+    await Batch.findByIdAndUpdate(req.params.id, { isActive: false });
+
+    res.json({
+      success: true,
+      message: 'Batch deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting batch',
+      error: error.message
+    });
+  }
+});
 // ==================== HALL MANAGEMENT ====================
 
 // @route   POST /api/admin/halls
