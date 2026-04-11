@@ -1,43 +1,72 @@
+/* ═══════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════ */
+
 .layout {
+  display: flex;
   min-height: 100vh;
-}
-
-.main-content {
-  margin-left: var(--sidebar-width);
-  min-height: 100vh;
-  transition: margin-left var(--transition-normal);
-}
-
-.sidebar.collapsed ~ .main-content {
-  margin-left: var(--sidebar-collapsed-width);
-}
-
-.page-content {
-  margin-top: var(--header-height);
-  padding: var(--spacing-6);
-  min-height: calc(100vh - var(--header-height));
   background-color: var(--bg-secondary);
 }
 
+/* ── Main Content Area ───────────────────────────────── */
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width, 260px);
+  min-height: 100vh;
+  transition: margin-left var(--transition-normal, 0.3s ease);
+  display: flex;
+  flex-direction: column;
+}
+
+/* When sidebar is collapsed */
+.layout.sidebar-collapsed .main-content {
+  margin-left: var(--sidebar-collapsed-width, 72px);
+}
+
+/* ── Page Content ────────────────────────────────────── */
+.page-content {
+  flex: 1;
+  margin-top: var(--header-height, 64px);
+  padding: var(--spacing-6, 24px);
+  min-height: calc(100vh - var(--header-height, 64px));
+  background-color: var(--bg-secondary);
+  overflow-x: hidden;
+}
+
+/* ── Sidebar Overlay (mobile) ────────────────────────── */
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: calc(var(--z-sticky) - 1);
-  display: none;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 39;
+  backdrop-filter: blur(2px);
+  animation: overlay-in 0.2s ease;
 }
 
-/* Responsive */
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .main-content {
+    margin-left: var(--sidebar-collapsed-width, 72px);
+  }
+}
+
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
   }
 
-  .sidebar-overlay {
-    display: block;
-  }
-
   .page-content {
-    padding: var(--spacing-4);
+    padding: var(--spacing-4, 16px);
+  }
+}
+
+@media (max-width: 480px) {
+  .page-content {
+    padding: var(--spacing-3, 12px);
   }
 }

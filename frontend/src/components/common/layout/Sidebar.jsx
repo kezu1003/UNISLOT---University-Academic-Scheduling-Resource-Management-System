@@ -1,116 +1,195 @@
-import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  FiHome, FiUsers, FiBook, FiCalendar, FiClock, 
-  FiSettings, FiChevronLeft, FiChevronRight,
-  FiLayers, FiGrid, FiCheckSquare, FiSend,
-  FiBarChart2, FiMapPin, FiLogOut
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import {
+  FiUsers, FiBook, FiLayers, FiMapPin,
+  FiCalendar, FiBarChart2, FiSend,
+  FiGrid, FiChevronDown, FiChevronRight,
+  FiLogOut, FiUser, FiSettings,
+  FiMenu, FiX, FiCpu
 } from 'react-icons/fi';
-// relative path up to context directory
 import { useAuth } from '../../../context/AuthContext';
 import './Sidebar.css';
 
-const Sidebar = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const { user, logout, isAdmin, isLIC, isCoordinator } = useAuth();
+/* ─── Nav Config per role ─────────────────────────── */
+const NAV = {
+  admin: [
+    {
+      group: 'Main',
+      items: [
+        { label: 'Dashboard',  to: '/admin',         icon: FiGrid,    exact: true },
+      ]
+    },
+    {
+      group: 'Management',
+      items: [
+        { label: 'Staff',      to: '/admin/staff',    icon: FiUsers   },
+        { label: 'Batches',    to: '/admin/batches',  icon: FiLayers  },
+        { label: 'Courses',    to: '/admin/courses',  icon: FiBook    },
+        { label: 'Halls',      to: '/admin/halls',    icon: FiMapPin  },
+      ]
+    }
+  ],
+  lic: [
+    {
+      group: 'Main',
+      items: [
+        { label: 'Dashboard',        to: '/lic',           icon: FiGrid,   exact: true },
+      ]
+    },
+    {
+      group: 'Courses',
+      items: [
+        { label: 'My Courses',       to: '/lic/courses',   icon: FiBook    },
+        { label: 'Assign Staff',     to: '/lic/assign',    icon: FiUsers   },
+      ]
+    }
+  ],
+  coordinator: [
+    {
+      group: 'Main',
+      items: [
+        { label: 'Dashboard',        to: '/coordinator',              icon: FiGrid,     exact: true },
+      ]
+    },
+    {
+      group: 'Scheduling',
+      items: [
+        { label: 'Timetable',        to: '/coordinator/timetable',    icon: FiCalendar  },
+        { label: 'Schedule Classes', to: '/coordinator/schedule',     icon: FiCpu       },
+        { label: 'Workload',         to: '/coordinator/workload',     icon: FiBarChart2 },
+        { label: 'Publish',          to: '/coordinator/publish',      icon: FiSend      },
+      ]
+    }
+  ]
+};
+
+/* ─── Sidebar Component ───────────────────────────── */
+const Sidebar = ({ mobileOpen, onMobileClose }) => {
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate  = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
 
-  // Define navigation items based on role
-  const getNavItems = () => {
-    if (isAdmin) {
-      return [
-        { path: '/admin', icon: FiHome, label: 'Dashboard', exact: true },
-        { path: '/admin/staff', icon: FiUsers, label: 'Staff Management' },
-        { path: '/admin/batches', icon: FiLayers, label: 'Batch Management' },
-        { path: '/admin/courses', icon: FiBook, label: 'Course Management' },
-        { path: '/admin/halls', icon: FiMapPin, label: 'Hall Management' },
-        { path: '/admin/settings', icon: FiSettings, label: 'Settings' }
-      ];
-    }
+  const role     = user?.role || 'admin';
+  const navGroups = NAV[role] || NAV.admin;
 
-    if (isLIC) {
-      return [
-        { path: '/lic', icon: FiHome, label: 'Dashboard', exact: true },
-        { path: '/lic/courses', icon: FiBook, label: 'My Courses' },
-        { path: '/lic/assign', icon: FiCheckSquare, label: 'Assign Instructors' },
-        { path: '/lic/workload', icon: FiBarChart2, label: 'Staff Workload' }
-      ];
-    }
+  /* close mobile sidebar on route change */
+  useEffect(() => {
+    if (onMobileClose) onMobileClose();
+  }, [location.pathname]);
 
-    if (isCoordinator) {
-      return [
-        { path: '/coordinator', icon: FiHome, label: 'Dashboard', exact: true },
-        { path: '/coordinator/timetable', icon: FiCalendar, label: 'Timetable' },
-        { path: '/coordinator/schedule', icon: FiClock, label: 'Schedule Classes' },
-        { path: '/coordinator/workload', icon: FiBarChart2, label: 'Workload Overview' },
-        { path: '/coordinator/conflicts', icon: FiGrid, label: 'Conflict Check' },
-        { path: '/coordinator/publish', icon: FiSend, label: 'Publish Timetable' }
-      ];
-    }
+  const initials = user?.name
+    ?.split(' ')
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
 
-    return [];
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
-  const navItems = getNavItems();
-
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      {/* Logo Section */}
-      <div className="sidebar-header">
-        <div className="logo">
-          <span className="logo-icon">🎓</span>
-          {!collapsed && <span className="logo-text">UniSlot</span>}
-        </div>
-        <button 
-          className="collapse-btn"
-          onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <FiChevronRight size={18} /> : <FiChevronLeft size={18} />}
-        </button>
-      </div>
-
-      {/* User Info */}
-      <div className="sidebar-user">
-        <div className="user-avatar">
-          {user?.name?.charAt(0).toUpperCase()}
-        </div>
-        {!collapsed && (
-          <div className="user-info">
-            <p className="user-name">{user?.name}</p>
-            <span className="user-role">{user?.role?.toUpperCase()}</span>
+    <>
+      <aside
+        className={[
+          'sidebar',
+          collapsed     ? 'sidebar--collapsed' : '',
+          mobileOpen    ? 'sidebar--mobile-open' : ''
+        ].filter(Boolean).join(' ')}
+      >
+        {/* ── Brand ────────────────────────────── */}
+        <div className="sidebar__brand">
+          <div className="sidebar__brand-logo">
+            <FiCalendar size={20} />
           </div>
-        )}
-      </div>
+          {!collapsed && (
+            <span className="sidebar__brand-name">UniSlot</span>
+          )}
+          <button
+            className="sidebar__collapse-btn"
+            onClick={() => setCollapsed(p => !p)}
+            title={collapsed ? 'Expand' : 'Collapse'}
+          >
+            {collapsed ? <FiChevronRight size={16} /> : <FiMenu size={16} />}
+          </button>
+        </div>
 
-      {/* Navigation */}
-      <nav className="sidebar-nav">
-        <ul>
-          {navItems.map((item) => (
-            <li key={item.path}>
-              <NavLink
-                to={item.path}
-                end={item.exact}
-                className={({ isActive }) => 
-                  `nav-link ${isActive ? 'active' : ''}`
-                }
-              >
-                <item.icon size={20} />
-                {!collapsed && <span>{item.label}</span>}
-              </NavLink>
-            </li>
+        {/* ── Nav ──────────────────────────────── */}
+        <nav className="sidebar__nav">
+          {navGroups.map((group) => (
+            <div key={group.group} className="sidebar__group">
+              {!collapsed && (
+                <span className="sidebar__group-label">{group.group}</span>
+              )}
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.exact}
+                  className={({ isActive }) =>
+                    ['sidebar__link', isActive ? 'sidebar__link--active' : ''].join(' ')
+                  }
+                  title={collapsed ? item.label : undefined}
+                >
+                  <item.icon size={18} className="sidebar__link-icon" />
+                  {!collapsed && (
+                    <span className="sidebar__link-label">{item.label}</span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
-        </ul>
-      </nav>
+        </nav>
 
-      {/* Footer */}
-      <div className="sidebar-footer">
-        <button className="logout-btn" onClick={logout}>
-          <FiLogOut size={20} />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
-    </aside>
+        {/* ── Footer ───────────────────────────── */}
+        <div className="sidebar__footer">
+          {/* Profile Link */}
+          <NavLink
+            to={`/${role}/profile`}
+            className={({ isActive }) =>
+              ['sidebar__footer-link', isActive ? 'sidebar__footer-link--active' : ''].join(' ')
+            }
+            title={collapsed ? 'My Profile' : undefined}
+          >
+            <div className="sidebar__footer-avatar">{initials}</div>
+            {!collapsed && (
+              <div className="sidebar__footer-info">
+                <span className="sidebar__footer-name">
+                  {user?.name || 'User'}
+                </span>
+                <span className="sidebar__footer-role">
+                  {user?.role?.toUpperCase() || 'ROLE'}
+                </span>
+              </div>
+            )}
+          </NavLink>
+
+          {/* Settings */}
+          <NavLink
+            to={`/${role}/settings`}
+            className={({ isActive }) =>
+              ['sidebar__icon-btn', isActive ? 'sidebar__icon-btn--active' : ''].join(' ')
+            }
+            title="Settings"
+          >
+            <FiSettings size={17} />
+            {!collapsed && <span>Settings</span>}
+          </NavLink>
+
+          {/* Logout */}
+          <button
+            className="sidebar__icon-btn sidebar__icon-btn--logout"
+            onClick={handleLogout}
+            title="Logout"
+          >
+            <FiLogOut size={17} />
+            {!collapsed && <span>Logout</span>}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 

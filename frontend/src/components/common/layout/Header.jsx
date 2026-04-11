@@ -1,128 +1,123 @@
-import React, { useState } from 'react';
-import { 
-  FiMenu, FiBell, FiSearch, FiSun, FiMoon,
-  FiChevronDown, FiUser, FiSettings, FiLogOut
+import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  FiMenu, FiBell, FiUser,
+  FiSettings, FiLogOut, FiChevronDown
 } from 'react-icons/fi';
-// context folder is three levels up from common/layout
 import { useAuth } from '../../../context/AuthContext';
 import './Header.css';
 
 const Header = ({ onMenuClick, title }) => {
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.setAttribute('data-theme', !darkMode ? 'dark' : 'light');
+  const role = user?.role || 'admin';
+
+  const initials = user?.name
+    ?.split(' ')
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
+
+  const handleLogout = () => {
+    setDropdownOpen(false);
+    logout();
   };
 
-  // Mock notifications
-  const notifications = [
-    { id: 1, text: 'New course assignment pending', time: '5 min ago', unread: true },
-    { id: 2, text: 'Timetable published for Y2.S1.WD.IT', time: '1 hour ago', unread: true },
-    { id: 3, text: 'Workload updated for Dr. Smith', time: '3 hours ago', unread: false }
-  ];
-
-  const unreadCount = notifications.filter(n => n.unread).length;
+  /* close dropdown when clicking outside */
+  React.useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e) => {
+      if (!e.target.closest('.header__user')) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dropdownOpen]);
 
   return (
     <header className="header">
-      <div className="header-left">
-        <button className="menu-btn hide-desktop" onClick={onMenuClick}>
-          <FiMenu size={24} />
+      {/* Left */}
+      <div className="header__left">
+        <button
+          className="header__menu-btn"
+          onClick={onMenuClick}
+          aria-label="Toggle menu"
+        >
+          <FiMenu size={20} />
         </button>
-        <h1 className="page-title">{title}</h1>
+        <h1 className="header__title">{title}</h1>
       </div>
 
-      <div className="header-center hide-mobile">
-        <div className="search-bar">
-          <FiSearch size={18} />
-          <input 
-            type="text" 
-            placeholder="Search courses, staff, batches..." 
-          />
-        </div>
-      </div>
-
-      <div className="header-right">
-        {/* Dark Mode Toggle */}
-        <button className="icon-btn" onClick={toggleDarkMode} title="Toggle theme">
-          {darkMode ? <FiSun size={20} /> : <FiMoon size={20} />}
+      {/* Right */}
+      <div className="header__right">
+        {/* Notification Bell */}
+        <button className="header__icon-btn" title="Notifications">
+          <FiBell size={18} />
+          <span className="header__notif-dot" />
         </button>
 
-        {/* Notifications */}
-        <div className="dropdown">
-          <button 
-            className="icon-btn notification-btn"
-            onClick={() => setShowNotifications(!showNotifications)}
+        {/* User Menu */}
+        <div className="header__user">
+          <button
+            className="header__user-btn"
+            onClick={() => setDropdownOpen(p => !p)}
+            aria-expanded={dropdownOpen}
           >
-            <FiBell size={20} />
-            {unreadCount > 0 && <span className="badge-count">{unreadCount}</span>}
+            <div className="header__avatar">{initials}</div>
+            <div className="header__user-info">
+              <span className="header__user-name">{user?.name || 'User'}</span>
+              <span className="header__user-role">
+                {role.charAt(0).toUpperCase() + role.slice(1)}
+              </span>
+            </div>
+            <FiChevronDown
+              size={15}
+              className={`header__chevron ${dropdownOpen ? 'rotated' : ''}`}
+            />
           </button>
 
-          {showNotifications && (
-            <div className="dropdown-menu notifications-menu">
-              <div className="dropdown-header">
-                <h3>Notifications</h3>
-                <button className="mark-read-btn">Mark all as read</button>
-              </div>
-              <div className="dropdown-body">
-                {notifications.map(notification => (
-                  <div 
-                    key={notification.id} 
-                    className={`notification-item ${notification.unread ? 'unread' : ''}`}
-                  >
-                    <p>{notification.text}</p>
-                    <span className="notification-time">{notification.time}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="dropdown-footer">
-                <a href="/notifications">View all notifications</a>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Profile Dropdown */}
-        <div className="dropdown">
-          <button 
-            className="profile-btn"
-            onClick={() => setShowProfile(!showProfile)}
-          >
-            <div className="profile-avatar">
-              {user?.name?.charAt(0).toUpperCase()}
-            </div>
-            <span className="profile-name hide-mobile">{user?.name}</span>
-            <FiChevronDown size={16} className="hide-mobile" />
-          </button>
-
-          {showProfile && (
-            <div className="dropdown-menu profile-menu">
-              <div className="profile-info">
-                <div className="profile-avatar large">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
+          {/* Dropdown */}
+          {dropdownOpen && (
+            <div className="header__dropdown">
+              {/* User info header */}
+              <div className="header__dropdown-header">
+                <div className="header__dropdown-avatar">{initials}</div>
                 <div>
-                  <p className="profile-name">{user?.name}</p>
-                  <p className="profile-email">{user?.email}</p>
+                  <span className="header__dropdown-name">{user?.name}</span>
+                  <span className="header__dropdown-email">{user?.email}</span>
                 </div>
               </div>
-              <div className="dropdown-divider" />
-              <a href="/profile" className="dropdown-item">
-                <FiUser size={18} />
-                <span>My Profile</span>
-              </a>
-              <a href="/settings" className="dropdown-item">
-                <FiSettings size={18} />
-                <span>Settings</span>
-              </a>
-              <div className="dropdown-divider" />
-              <button className="dropdown-item danger" onClick={logout}>
-                <FiLogOut size={18} />
-                <span>Logout</span>
+
+              <div className="header__dropdown-divider" />
+
+              {/* Links */}
+              <Link
+                to={`/${role}/profile`}
+                className="header__dropdown-item"
+                onClick={() => setDropdownOpen(false)}
+              >
+                <FiUser size={15} /> My Profile
+              </Link>
+
+              <Link
+                to={`/${role}/settings`}
+                className="header__dropdown-item"
+                onClick={() => setDropdownOpen(false)}
+              >
+                <FiSettings size={15} /> Settings
+              </Link>
+
+              <div className="header__dropdown-divider" />
+
+              <button
+                className="header__dropdown-item header__dropdown-item--danger"
+                onClick={handleLogout}
+              >
+                <FiLogOut size={15} /> Logout
               </button>
             </div>
           )}

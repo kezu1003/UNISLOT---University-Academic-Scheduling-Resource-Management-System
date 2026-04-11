@@ -4,7 +4,6 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider } from './context/AuthContext';
-// layout components are located under common/layout, not directly under components
 import ProtectedRoute from './components/common/layout/ProtectedRoute';
 import Layout from './components/common/layout/Layout';
 
@@ -18,9 +17,12 @@ import BatchManagement from './pages/admin/BatchManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import HallManagement from './pages/admin/HallManagement';
 
+// ✅ Account Pages
+import AccountProfile from './pages/account/Profile';
+import AccountSettings from './pages/account/Settings';
+
 // LIC Pages
 import LICDashboard from './pages/lic/Dashboard';
-// CourseAssignment component did not exist previously; we now provide a simple wrapper
 import CourseAssignment from './pages/lic/CourseAssignment';
 import StaffSelection from './pages/lic/StaffSelection';
 
@@ -40,41 +42,68 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Layout />
-            </ProtectedRoute>
-          }>
+          {/* ════════════════════════════════════
+              ADMIN ROUTES
+              ════════════════════════════════════ */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<AdminDashboard />} />
             <Route path="staff" element={<StaffManagement />} />
             <Route path="batches" element={<BatchManagement />} />
             <Route path="courses" element={<CourseManagement />} />
             <Route path="halls" element={<HallManagement />} />
+
+            {/* ✅ Admin Account Routes */}
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="settings" element={<AccountSettings />} />
           </Route>
 
-          {/* LIC Routes */}
-          <Route path="/lic" element={
-            <ProtectedRoute allowedRoles={['lic']}>
-              <Layout />
-            </ProtectedRoute>
-          }>
+          {/* ════════════════════════════════════
+              LIC ROUTES
+              ════════════════════════════════════ */}
+          <Route
+            path="/lic"
+            element={
+              <ProtectedRoute allowedRoles={['lic']}>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<LICDashboard />} />
             <Route path="courses" element={<CourseAssignment />} />
             <Route path="assign" element={<StaffSelection />} />
+
+            {/* ✅ LIC Account Routes */}
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="settings" element={<AccountSettings />} />
           </Route>
 
-          {/* Coordinator Routes */}
-          <Route path="/coordinator" element={
-            <ProtectedRoute allowedRoles={['coordinator', 'admin']}>
-              <Layout />
-            </ProtectedRoute>
-          }>
+          {/* ════════════════════════════════════
+              COORDINATOR ROUTES
+              ════════════════════════════════════ */}
+          <Route
+            path="/coordinator"
+            element={
+              <ProtectedRoute allowedRoles={['coordinator', 'admin']}>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<CoordinatorDashboard />} />
             <Route path="timetable" element={<TimetableScheduler />} />
             <Route path="schedule" element={<TimetableScheduler />} />
             <Route path="workload" element={<WorkloadOverview />} />
             <Route path="publish" element={<PublishTimetable />} />
+
+            {/* ✅ Coordinator Account Routes */}
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="settings" element={<AccountSettings />} />
           </Route>
 
           {/* Redirects */}
@@ -88,9 +117,6 @@ function App() {
           hideProgressBar={false}
           newestOnTop
           closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
           pauseOnHover
           theme="light"
         />

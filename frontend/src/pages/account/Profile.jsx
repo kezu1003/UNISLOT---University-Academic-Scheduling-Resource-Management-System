@@ -1,278 +1,356 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FiMail, FiShield, FiUser, FiClock, FiCheckCircle, FiArrowRight } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  FiMail, FiShield, FiUser, FiClock,
+  FiCheckCircle, FiArrowRight, FiEdit3,
+  FiSave, FiX
+} from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import { Card, CardBody, CardHeader } from '../../components/common/Card';
-import Button from '../../components/common/Button';
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import './Account.css';
 
-const roleConfig = {
+/* ── Role Config ─────────────────────────────────────── */
+const ROLE_CONFIG = {
   admin: {
     title: 'System Administrator',
-    description: 'Manage academic resources, master data, and platform readiness across UniSlot.',
+    color: 'primary',
+    description:
+      'Manage academic resources, master data, and platform readiness across UniSlot.',
     quickLinks: [
-      { label: 'Manage Staff', to: '/admin/staff' },
-      { label: 'Manage Courses', to: '/admin/courses' },
-      { label: 'Manage Batches', to: '/admin/batches' },
-      { label: 'Manage Halls', to: '/admin/halls' }
+      { label: 'Manage Staff',    to: '/admin/staff'    },
+      { label: 'Manage Courses',  to: '/admin/courses'  },
+      { label: 'Manage Batches',  to: '/admin/batches'  },
+      { label: 'Manage Halls',    to: '/admin/halls'    }
     ]
   },
   lic: {
     title: 'Lecturer In Charge',
-    description: 'Coordinate course ownership, instructor assignment, and workload preparation.',
+    color: 'success',
+    description:
+      'Coordinate course ownership, instructor assignment, and workload preparation.',
     quickLinks: [
-      { label: 'My Courses', to: '/lic/courses' },
-      { label: 'Assign Instructors', to: '/lic/assign' }
+      { label: 'My Courses',         to: '/lic/courses' },
+      { label: 'Assign Instructors', to: '/lic/assign'  }
     ]
   },
   coordinator: {
     title: 'Timetable Coordinator',
-    description: 'Build conflict-aware schedules, balance halls, and publish working timetables.',
+    color: 'warning',
+    description:
+      'Build conflict-aware schedules, balance halls, and publish working timetables.',
     quickLinks: [
-      { label: 'Timetable View', to: '/coordinator/timetable' },
-      { label: 'Schedule Classes', to: '/coordinator/schedule' },
-      { label: 'Publish Timetable', to: '/coordinator/publish' }
+      { label: 'Timetable View',   to: '/coordinator/timetable' },
+      { label: 'Schedule Classes', to: '/coordinator/schedule'  },
+      { label: 'Publish Timetable',to: '/coordinator/publish'   }
     ]
   }
 };
 
 const formatDate = (value) => {
   if (!value) return 'Not available';
-
   try {
     return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      year: 'numeric', month: 'long', day: 'numeric'
     }).format(new Date(value));
-  } catch (error) {
+  } catch {
     return 'Not available';
   }
 };
 
-const getErrorMessage = (error, fallback) => {
-  if (error.response?.data?.message) {
-    return error.response.data.message;
-  }
+const getErrMsg = (err, fallback) =>
+  err?.response?.data?.message ||
+  err?.response?.data?.errors?.[0]?.msg ||
+  fallback;
 
-  if (Array.isArray(error.response?.data?.errors) && error.response.data.errors.length > 0) {
-    return error.response.data.errors[0].msg;
-  }
-
-  return fallback;
-};
-
+/* ═══════════════════════════════════════════════════════
+   COMPONENT
+   ═══════════════════════════════════════════════════════ */
 const AccountProfile = () => {
   const { user, setUser } = useAuth();
-  const [formData, setFormData] = useState({ name: '', email: '' });
-  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
 
+  const [editing,  setEditing]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '' });
+  const [errors,   setErrors]   = useState({});
+
+  /* sync form with user */
   useEffect(() => {
-    setFormData({
-      name: user?.name || '',
-      email: user?.email || ''
-    });
+    setFormData({ name: user?.name || '', email: user?.email || '' });
   }, [user]);
 
-  const roleDetails = useMemo(() => {
-    return roleConfig[user?.role] || {
-      title: 'UniSlot User',
-      description: 'Access your account details and keep your profile up to date.',
-      quickLinks: []
-    };
-  }, [user?.role]);
-
-  const hasChanges =
-    formData.name.trim() !== (user?.name || '') ||
-    formData.email.trim().toLowerCase() !== (user?.email || '').toLowerCase();
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((current) => ({
-      ...current,
-      [name]: value
-    }));
+  const role = ROLE_CONFIG[user?.role] || {
+    title: 'UniSlot User',
+    color: 'primary',
+    description: 'Access your account details and keep your profile up to date.',
+    quickLinks: []
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const initials = user?.name
+    ?.split(' ')
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
 
-    if (!hasChanges) {
-      toast.info('Your profile is already up to date.');
-      return;
-    }
+  const hasChanges =
+    formData.name.trim()  !== (user?.name  || '') ||
+    formData.email.trim().toLowerCase() !== (user?.email || '').toLowerCase();
+
+  /* ── Validate ──────────────────────────────── */
+  const validate = () => {
+    const e = {};
+    if (!formData.name.trim())  e.name  = 'Name is required';
+    if (!formData.email.trim()) e.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+      e.email = 'Enter a valid email address';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  /* ── Handlers ──────────────────────────────── */
+  const handleChange = e => {
+    const { name, value } = e.target;
+    setFormData(p => ({ ...p, [name]: value }));
+    if (errors[name]) setErrors(p => ({ ...p, [name]: '' }));
+  };
+
+  const handleCancel = () => {
+    setFormData({ name: user?.name || '', email: user?.email || '' });
+    setErrors({});
+    setEditing(false);
+  };
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    if (!validate()) return;
+    if (!hasChanges) { toast.info('No changes to save.'); return; }
 
     try {
       setSaving(true);
-      const response = await authAPI.updateProfile({
-        name: formData.name.trim(),
+      const res = await authAPI.updateProfile({
+        name:  formData.name.trim(),
         email: formData.email.trim()
       });
-
-      setUser(response.data.data);
-      toast.success('Profile updated successfully.');
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Unable to update your profile.'));
+      setUser(res.data.data);
+      toast.success('Profile updated successfully ✓');
+      setEditing(false);
+    } catch (err) {
+      toast.error(getErrMsg(err, 'Unable to update profile.'));
     } finally {
       setSaving(false);
     }
   };
 
+  /* ─── RENDER ─────────────────────────────────────── */
   return (
-    <div className="account-page">
-      <section className="account-hero">
-        <div className="account-identity">
-          <div className="account-avatar">
-            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-          </div>
-          <div>
-            <p className="account-eyebrow">Account Overview</p>
-            <h2>{user?.name || 'UniSlot User'}</h2>
-            <p className="account-subtitle">{roleDetails.description}</p>
-          </div>
-        </div>
-        <div className="account-badges">
-          <span className="badge badge-primary">{roleDetails.title}</span>
-          <span className="badge badge-success">Active Account</span>
-        </div>
-      </section>
+    <div className="acc-page">
 
-      <div className="account-grid">
-        <Card className="account-card">
-          <CardHeader>
+      {/* ── Hero Banner ────────────────────────────── */}
+      <div className={`acc-hero acc-hero--${role.color}`}>
+        <div className="acc-hero__bg" />
+        <div className="acc-hero__content">
+          <div className="acc-hero__left">
+            <div className="acc-avatar">
+              <span>{initials}</span>
+            </div>
+            <div className="acc-hero__info">
+              <span className="acc-hero__eyebrow">Account Profile</span>
+              <h2 className="acc-hero__name">{user?.name || 'UniSlot User'}</h2>
+              <p className="acc-hero__sub">{role.description}</p>
+              <div className="acc-hero__badges">
+                <span className={`acc-badge acc-badge--${role.color}`}>
+                  {role.title}
+                </span>
+                <span className="acc-badge acc-badge--success">
+                  Active Account
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            className="acc-edit-btn"
+            onClick={() => setEditing(true)}
+            title="Edit profile"
+          >
+            <FiEdit3 size={16} /> Edit Profile
+          </button>
+        </div>
+      </div>
+
+      {/* ── Grid ───────────────────────────────────── */}
+      <div className="acc-grid">
+
+        {/* Profile Form */}
+        <div className="acc-card">
+          <div className="acc-card__header">
             <h3>Profile Details</h3>
-          </CardHeader>
-          <CardBody>
-            <form onSubmit={handleSubmit}>
-              <div className="account-form-grid">
-                <div className="form-group">
-                  <label className="form-label required" htmlFor="name">Full Name</label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    className="form-input"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="Enter your full name"
-                  />
+            {editing && (
+              <span className="acc-editing-badge">Editing…</span>
+            )}
+          </div>
+          <div className="acc-card__body">
+            <form onSubmit={handleSubmit} noValidate>
+              <div className="acc-form-grid">
+
+                {/* Name */}
+                <div className={`acc-field ${errors.name ? 'acc-field--error' : editing && formData.name ? 'acc-field--success' : ''}`}>
+                  <label htmlFor="name">
+                    Full Name <span className="acc-req">*</span>
+                  </label>
+                  <div className="acc-input-wrap">
+                    <FiUser className="acc-input-icon" size={15} />
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      value={formData.name}
+                      onChange={handleChange}
+                      disabled={!editing}
+                      placeholder="Enter your full name"
+                      className={`acc-input ${errors.name ? 'is-error' : ''}`}
+                    />
+                  </div>
+                  {errors.name && (
+                    <span className="acc-field-error">{errors.name}</span>
+                  )}
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label required" htmlFor="email">Email Address</label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    className="form-input"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter your email address"
-                  />
+                {/* Email */}
+                <div className={`acc-field ${errors.email ? 'acc-field--error' : editing && formData.email ? 'acc-field--success' : ''}`}>
+                  <label htmlFor="email">
+                    Email Address <span className="acc-req">*</span>
+                  </label>
+                  <div className="acc-input-wrap">
+                    <FiMail className="acc-input-icon" size={15} />
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      disabled={!editing}
+                      placeholder="Enter your email"
+                      className={`acc-input ${errors.email ? 'is-error' : ''}`}
+                    />
+                  </div>
+                  {errors.email && (
+                    <span className="acc-field-error">{errors.email}</span>
+                  )}
                 </div>
               </div>
 
-              <div className="account-actions">
-                <Button type="submit" loading={saving}>
-                  Save Profile
-                </Button>
-              </div>
+              {editing && (
+                <div className="acc-form-actions">
+                  <button
+                    type="button"
+                    className="acc-btn acc-btn--ghost"
+                    onClick={handleCancel}
+                    disabled={saving}
+                  >
+                    <FiX size={15} /> Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="acc-btn acc-btn--primary"
+                    disabled={saving || !hasChanges}
+                  >
+                    {saving ? (
+                      <><span className="acc-spinner" /> Saving…</>
+                    ) : (
+                      <><FiSave size={15} /> Save Changes</>
+                    )}
+                  </button>
+                </div>
+              )}
             </form>
-          </CardBody>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="account-card">
-          <CardHeader>
+        {/* Account Snapshot */}
+        <div className="acc-card">
+          <div className="acc-card__header">
             <h3>Account Snapshot</h3>
-          </CardHeader>
-          <CardBody>
-            <div className="detail-list">
-              <div className="detail-item">
-                <div className="detail-icon">
-                  <FiUser size={18} />
+          </div>
+          <div className="acc-card__body">
+            <div className="acc-detail-list">
+              {[
+                { icon: FiUser,   label: 'Role',         value: role.title },
+                { icon: FiMail,   label: 'Email',        value: user?.email || '—' },
+                {
+                  icon: FiShield,
+                  label: 'Account Status',
+                  value: user?.isActive === false ? 'Inactive' : 'Active',
+                  accent: user?.isActive !== false ? 'success' : 'error'
+                },
+                {
+                  icon: FiClock,
+                  label: 'Member Since',
+                  value: formatDate(user?.createdAt)
+                }
+              ].map((item, i) => (
+                <div key={i} className="acc-detail-item">
+                  <div className="acc-detail-icon">
+                    <item.icon size={17} />
+                  </div>
+                  <div className="acc-detail-content">
+                    <span className="acc-detail-label">{item.label}</span>
+                    <span className={`acc-detail-value ${item.accent ? `acc-detail-value--${item.accent}` : ''}`}>
+                      {item.value}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <p className="detail-label">Role</p>
-                  <p className="detail-value">{roleDetails.title}</p>
-                </div>
-              </div>
-
-              <div className="detail-item">
-                <div className="detail-icon">
-                  <FiMail size={18} />
-                </div>
-                <div>
-                  <p className="detail-label">Primary Email</p>
-                  <p className="detail-value">{user?.email || 'Not available'}</p>
-                </div>
-              </div>
-
-              <div className="detail-item">
-                <div className="detail-icon">
-                  <FiShield size={18} />
-                </div>
-                <div>
-                  <p className="detail-label">Account Status</p>
-                  <p className="detail-value">{user?.isActive === false ? 'Inactive' : 'Active'}</p>
-                </div>
-              </div>
-
-              <div className="detail-item">
-                <div className="detail-icon">
-                  <FiClock size={18} />
-                </div>
-                <div>
-                  <p className="detail-label">Member Since</p>
-                  <p className="detail-value">{formatDate(user?.createdAt)}</p>
-                </div>
-              </div>
+              ))}
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="account-card">
-          <CardHeader>
+        {/* Responsibilities */}
+        <div className="acc-card">
+          <div className="acc-card__header">
             <h3>UniSlot Responsibilities</h3>
-          </CardHeader>
-          <CardBody>
-            <div className="responsibility-panel">
-              <div className="responsibility-item">
-                <FiCheckCircle size={18} />
-                <span>Keep your account details accurate for system communication.</span>
-              </div>
-              <div className="responsibility-item">
-                <FiCheckCircle size={18} />
-                <span>Use settings to protect access and tailor your dashboard workflow.</span>
-              </div>
-              <div className="responsibility-item">
-                <FiCheckCircle size={18} />
-                <span>Review role-based modules regularly to keep the scheduling cycle moving.</span>
-              </div>
+          </div>
+          <div className="acc-card__body">
+            <div className="acc-resp-list">
+              {[
+                'Keep your account details accurate for system communication.',
+                'Use settings to protect access and tailor your dashboard workflow.',
+                'Review role-based modules regularly to keep the scheduling cycle moving.'
+              ].map((text, i) => (
+                <div key={i} className="acc-resp-item">
+                  <FiCheckCircle size={16} className="acc-resp-icon" />
+                  <span>{text}</span>
+                </div>
+              ))}
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="account-card">
-          <CardHeader>
+        {/* Quick Access */}
+        <div className="acc-card">
+          <div className="acc-card__header">
             <h3>Quick Access</h3>
-          </CardHeader>
-          <CardBody>
-            <div className="quick-links-list">
-              {roleDetails.quickLinks.map((link) => (
-                <Link key={link.to} to={link.to} className="quick-link-row">
+          </div>
+          <div className="acc-card__body">
+            <div className="acc-links-list">
+              {role.quickLinks.map(link => (
+                <Link key={link.to} to={link.to} className="acc-link-row">
                   <span>{link.label}</span>
-                  <FiArrowRight size={16} />
+                  <FiArrowRight size={15} />
                 </Link>
               ))}
-              <Link to={`/${user?.role || 'admin'}/settings`} className="quick-link-row">
+              <Link
+                to={`/${user?.role || 'admin'}/settings`}
+                className="acc-link-row acc-link-row--highlight"
+              >
                 <span>Open Account Settings</span>
-                <FiArrowRight size={16} />
+                <FiArrowRight size={15} />
               </Link>
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </div>
+
       </div>
     </div>
   );

@@ -4,9 +4,9 @@ import api from '../services/api';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
     checkAuth();
@@ -18,11 +18,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return;
     }
-
     try {
       const response = await api.get('/auth/me');
       setUser(response.data.data);
-    } catch (err) {
+    } catch {
       localStorage.removeItem('token');
       setUser(null);
     } finally {
@@ -34,12 +33,10 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await api.post('/auth/login', { email, password });
-      const { token, ...userData } = response.data.data;
-      
+      const { token, data } = response.data;
       localStorage.setItem('token', token);
-      setUser(userData);
-      
-      return { success: true };
+      setUser(data);
+      return { success: true, user: data };
     } catch (err) {
       const message = err.response?.data?.message || 'Login failed';
       setError(message);
@@ -51,16 +48,11 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await api.post('/auth/register', {
-        name,
-        email,
-        password,
-        role
+        name, email, password, role
       });
-      
-      const { token, ...userData } = response.data.data;
+      const { token, data } = response.data;
       localStorage.setItem('token', token);
-      setUser(userData);
-      
+      setUser(data);
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.message || 'Registration failed';
@@ -75,17 +67,25 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/login';
   };
 
+  /* ✅ updateUser – called after profile save */
+  const updateUser = (updatedUser) => {
+    setUser(updatedUser);
+  };
+
   const value = {
     user,
+    setUser,          // ✅ exposed so Profile can call it
+    updateUser,       // ✅ named helper
     loading,
     error,
     login,
     register,
     logout,
+    checkAuth,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    isLIC: user?.role === 'lic',
-    isCoordinator: user?.role === 'coordinator'
+    isAdmin:         user?.role === 'admin',
+    isLIC:           user?.role === 'lic',
+    isCoordinator:   user?.role === 'coordinator'
   };
 
   return (
