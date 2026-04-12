@@ -1,39 +1,56 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-// context is located at src/context
 import { useAuth } from '../../../context/AuthContext';
-// Loading component is one level up (common directory)
-import Loading from '../Loading';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading, isAuthenticated } = useAuth();
   const location = useLocation();
 
+  /* Still checking auth → show nothing (no redirect yet) */
   if (loading) {
     return (
-      <div style={{ 
-        height: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        gap: 16,
+        background: '#f8fafc'
       }}>
-        <Loading text="Loading..." />
+        <div style={{
+          width: 40, height: 40,
+          border: '4px solid #e2e8f0',
+          borderTopColor: '#6366f1',
+          borderRadius: '50%',
+          animation: 'spin 0.7s linear infinite'
+        }} />
+        <p style={{ color: '#64748b', margin: 0, fontSize: 14 }}>
+          Verifying access…
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
+  /* Not logged in → go to login */
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    // Redirect to their respective dashboard
-    const dashboardRoutes = {
-      admin: '/admin',
-      lic: '/lic',
+  /* ✅ Case-insensitive role check */
+  const userRole = user?.role?.toLowerCase();
+  const allowed  = allowedRoles.map(r => r.toLowerCase());
+  const hasAccess = allowed.length === 0 || allowed.includes(userRole);
+
+  if (!hasAccess) {
+    /* Logged in but wrong role → send to their own dashboard */
+    const dashboards = {
+      admin:       '/admin',
+      lic:         '/lic',
       coordinator: '/coordinator'
     };
-    return <Navigate to={dashboardRoutes[user?.role] || '/login'} replace />;
+    return <Navigate to={dashboards[userRole] || '/login'} replace />;
   }
 
   return children;
