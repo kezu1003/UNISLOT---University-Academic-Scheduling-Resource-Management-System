@@ -1,47 +1,63 @@
+// context/AuthContext.jsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user,    setUser]    = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
+  const [error, setError] = useState(null);
 
-  /* ── Safely extract user from any response shape ─────── */
+  // ✅ Extract user from ANY response shape
+  const extractUserAndToken = (responseData) => {
+    let token = null;
+    let userData = null;
+
+    // Shape 1: { success, data: { _id, name, role, token } }
+    // (YOUR BACKEND FORMAT)
+    if (responseData?.data?.token) {
+      token = responseData.data.token;
+      const { token: _, ...rest } = responseData.data;
+      userData = rest;
+    }
+    // Shape 2: { token, data: { _id, name, role } }
+    else if (responseData?.token && responseData?.data) {
+      token = responseData.token;
+      userData = responseData.data;
+    }
+    // Shape 3: { token, user: { _id, name, role } }
+    else if (responseData?.token && responseData?.user) {
+      token = responseData.token;
+      userData = responseData.user;
+    }
+
+    return { token, userData };
+  };
+
   const extractUser = (responseData) => {
-    // Shape 1: { token, data: { _id, name, role... } }
-    if (responseData?.data && responseData.data._id) {
-      return responseData.data;
-    }
-    // Shape 2: { token, user: { _id, name, role... } }
-    if (responseData?.user && responseData.user._id) {
-      return responseData.user;
-    }
-    // Shape 3: { _id, name, role... } (user object directly)
-    if (responseData?._id) {
-      return responseData;
-    }
+    if (responseData?.data?._id) return responseData.data;
+    if (responseData?.user?._id) return responseData.user;
+    if (responseData?._id) return responseData;
     return null;
   };
 
-  /* ── Check auth on mount ─────────────────────────────── */
+  // ── Check auth on mount
   const checkAuth = useCallback(async () => {
     const token = localStorage.getItem('token');
-
     if (!token) {
       setLoading(false);
       return;
     }
 
     try {
-      const res  = await api.get('/auth/me');
+      const res = await api.get('/auth/me');
       const userData = extractUser(res.data);
 
       if (userData) {
         setUser(userData);
       } else {
-        // Response came back but no user data → clear token
         localStorage.removeItem('token');
         setUser(null);
       }
@@ -57,28 +73,25 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [checkAuth]);
 
-  /* ── Login ───────────────────────────────────────────── */
+  // ── Login
   const login = async (email, password) => {
     try {
       setError(null);
-
       const res = await api.post('/auth/login', { email, password });
 
-      // ✅ Extract token - handle multiple shapes
-      const token =
-        res.data?.token ||
-        res.data?.data?.token ||
-        res.data?.accessToken;
+      console.log('Login response:', res.data); // Debug
 
-      // ✅ Extract user - handle multiple shapes
-      const userData = extractUser(res.data);
+      const { token, userData } = extractUserAndToken(res.data);
+
+      console.log('Extracted token:', token ? 'YES' : 'NO');
+      console.log('Extracted user:', userData);
 
       if (!token) {
         return { success: false, message: 'No token received from server' };
       }
 
       if (!userData) {
-        return { success: false, message: 'No user data received from server' };
+        return { success: false, message: 'No user data received' };
       }
 
       localStorage.setItem('token', token);
@@ -88,21 +101,20 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       const message =
         err.response?.data?.message ||
-        err.response?.data?.error  ||
-        'Login failed. Please try again.';
+        err.response?.data?.error ||
+        'Login failed';
       setError(message);
       return { success: false, message };
     }
   };
 
-  /* ── Register ────────────────────────────────────────── */
+  // ── Register
   const register = async (name, email, password, role) => {
     try {
       setError(null);
       const res = await api.post('/auth/register', { name, email, password, role });
 
-      const token    = res.data?.token || res.data?.data?.token;
-      const userData = extractUser(res.data);
+      const { token, userData } = extractUserAndToken(res.data);
 
       if (token) localStorage.setItem('token', token);
       if (userData) setUser(userData);
@@ -115,7 +127,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /* ── Logout ──────────────────────────────────────────── */
+  // ── Logout
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -123,16 +135,16 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/login';
   };
 
-  /* ── Update user (after profile edit) ───────────────── */
+  // ── Update user
   const updateUser = (updatedUser) => {
     setUser(updatedUser);
   };
 
-  /* ── Role-based dashboard route ──────────────────────── */
+  // ── Dashboard route helper
   const getDashboardRoute = (role) => {
     const routes = {
-      admin:       '/admin',
-      lic:         '/lic',
+      admin: '/admin',
+      lic: '/lic',
       coordinator: '/coordinator'
     };
     return routes[role?.toLowerCase()] || '/admin';
@@ -140,18 +152,18 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
-    setUser,       // ✅ exposed for Profile page
-    updateUser,    // ✅ named helper
+    setUser,
+    updateUser,
     loading,
     error,
     login,
     register,
     logout,
     checkAuth,
-    isAuthenticated:  !!user,
-    isAdmin:          user?.role?.toLowerCase() === 'admin',
-    isLIC:            user?.role?.toLowerCase() === 'lic',
-    isCoordinator:    user?.role?.toLowerCase() === 'coordinator',
+    isAuthenticated: !!user,
+    isAdmin: user?.role?.toLowerCase() === 'admin',
+    isLIC: user?.role?.toLowerCase() === 'lic',
+    isCoordinator: user?.role?.toLowerCase() === 'coordinator',
     getDashboardRoute
   };
 
