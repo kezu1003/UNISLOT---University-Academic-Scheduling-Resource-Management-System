@@ -13,10 +13,20 @@ router.use(authorize('lic'));
 // @route   GET /api/lic/courses
 // @desc    Get courses assigned to LIC (Course.lic = Staff; matches User.staff or legacy User id)
 // @access  LIC only
+
 router.get('/courses', async (req, res) => {
   try {
-    const filter = await licCourseFilter(req.user);
-    const courses = await Course.find(filter)
+    
+    const licId = req.user.staff || req.user.id;
+
+    // දැනට filter එක නැතිව ඔක්කොම කෝස් එනවාද බලන්න මේ පේලිය පාවිච්චි කරන්න:
+    // const courses = await Course.find({ isActive: true }) 
+    
+    // නියම ක්‍රමය (මෙය පාවිච්චි කරන්න):
+    const courses = await Course.find({ 
+      lic: licId,
+      isActive: true 
+    })
     .populate('batches', 'batchCode studentCount')
     .populate('instructors.staff', 'name email priority currentWorkload maxWorkload')
     .sort('courseCode');
