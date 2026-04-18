@@ -14,7 +14,7 @@ import Table from '../../components/common/Table';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
 import { adminAPI } from '../../services/api';
-import { LOCATIONS, HALL_TYPES } from '../../utils/constants';
+import { LOCATIONS, HALL_TYPES, HALL_STATUSES } from '../../utils/constants';
 import { toast } from 'react-toastify';
 import './HallManagement.css';
 
@@ -82,6 +82,10 @@ const VALIDATION_RULES = {
     required: true,
     message: 'Please select a hall type'
   },
+  status: {
+    required: true,
+    message: 'Please select a status'
+  },
   facilities: {
     validate: (value) => {
       // Facilities are optional, so no error if empty
@@ -97,6 +101,7 @@ const INITIAL_FORM_DATA = {
   capacity: 50,
   location: 'Malabe',
   type: 'Lecture Hall',
+  status: 'Active',
   facilities: []
 };
 
@@ -106,6 +111,7 @@ const INITIAL_ERRORS = {
   capacity: '',
   location: '',
   type: '',
+  status: '',
   facilities: '',
   general: ''
 };
@@ -116,6 +122,7 @@ const INITIAL_TOUCHED = {
   capacity: false,
   location: false,
   type: false,
+  status: false,
   facilities: false
 };
 
@@ -732,12 +739,12 @@ const HallManagement = () => {
 
     try {
       await adminAPI.deleteHall(selectedHall._id);
-      toast.success('Hall deleted successfully');
+      toast.success('Hall moved to maintenance successfully');
       setShowDeleteModal(false);
       setSelectedHall(null);
       fetchHalls();
     } catch (error) {
-      toast.error('Failed to delete hall');
+      toast.error('Failed to move hall to maintenance');
     } finally {
       setDeleting(false);
     }
@@ -768,6 +775,7 @@ const HallManagement = () => {
       capacity: hall.capacity,
       location: hall.location,
       type: hall.type,
+      status: hall.status || 'Active',
       facilities: hall.facilities || []
     });
     setErrors(INITIAL_ERRORS);
@@ -836,6 +844,16 @@ const HallManagement = () => {
       )
     },
     {
+      key: 'status',
+      title: 'Status',
+      width: '120px',
+      render: (status) => (
+        <Badge variant={status === 'Active' ? 'success' : status === 'Maintenance' ? 'warning' : 'danger'}>
+          {status || 'Active'}
+        </Badge>
+      )
+    },
+    {
       key: 'facilities',
       title: 'Facilities',
       render: (facilities) => (
@@ -866,11 +884,11 @@ const HallManagement = () => {
             <FiEdit2 size={16} />
           </button>
           <button 
-            className="action-btn danger" 
+            className="action-btn warning" 
             onClick={() => { setSelectedHall(row); setShowDeleteModal(true); }}
-            title="Delete"
+            title="Move to Maintenance"
           >
-            <FiTrash2 size={16} />
+            <FiAlertTriangle size={16} />
           </button>
         </div>
       )
@@ -1122,6 +1140,21 @@ const HallManagement = () => {
             />
           </div>
 
+          {/* Status */}
+          <div className="form-row">
+            <ValidatedSelect
+              label="Status"
+              name="status"
+              options={HALL_STATUSES}
+              value={formData.status}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.status}
+              touched={touched.status}
+              required
+            />
+          </div>
+
           {/* Capacity */}
           <CapacitySlider
             label="Seating Capacity"
@@ -1178,6 +1211,10 @@ const HallManagement = () => {
                   <span className="summary-value">{formData.location}</span>
                 </div>
                 <div className="summary-item">
+                  <span className="summary-label">Status</span>
+                  <span className="summary-value">{formData.status}</span>
+                </div>
+                <div className="summary-item">
                   <span className="summary-label">Facilities</span>
                   <span className="summary-value">
                     {formData.facilities.length > 0 
@@ -1195,7 +1232,7 @@ const HallManagement = () => {
       <Modal
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setSelectedHall(null); }}
-        title="Confirm Delete"
+        title="Move to Maintenance"
         size="sm"
         footer={
           <>
@@ -1207,18 +1244,18 @@ const HallManagement = () => {
               Cancel
             </Button>
             <Button 
-              variant="danger" 
+              variant="warning" 
               onClick={handleDelete}
               loading={deleting}
             >
-              {deleting ? 'Deleting...' : 'Delete Hall'}
+              {deleting ? 'Moving...' : 'Move to Maintenance'}
             </Button>
           </>
         }
       >
         <div className="delete-warning">
           <FiAlertTriangle className="warning-icon" />
-          <p>Are you sure you want to delete this hall?</p>
+          <p>Are you sure you want to move this hall to maintenance?</p>
           {selectedHall && (
             <div className="delete-target-info">
               <span className="hall-code-delete">{selectedHall.hallCode}</span>
@@ -1228,7 +1265,7 @@ const HallManagement = () => {
               </p>
             </div>
           )}
-          <p className="warning-text">This will affect all scheduled classes in this hall.</p>
+          <p className="warning-text">This hall will be unavailable for scheduling until moved back to active status.</p>
         </div>
       </Modal>
     </div>
