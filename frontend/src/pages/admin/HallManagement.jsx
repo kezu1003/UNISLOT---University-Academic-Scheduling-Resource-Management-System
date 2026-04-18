@@ -877,7 +877,7 @@ const HallManagement = () => {
       render: (_, row) => (
         <div className="action-buttons">
           <button 
-            className="action-btn" 
+            className="action-btn edit" 
             onClick={() => openEditModal(row)}
             title="Edit"
           >

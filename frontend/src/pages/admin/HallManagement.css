@@ -246,6 +246,16 @@
   color: var(--text-primary);
 }
 
+.action-btn.edit:hover {
+  background-color: var(--primary-100);
+  color: var(--primary-600);
+}
+
+.action-btn.warning:hover {
+  background-color: var(--warning-light);
+  color: var(--warning-dark);
+}
+
 .action-btn.danger:hover {
   background-color: var(--error-light);
   color: var(--error-main);
