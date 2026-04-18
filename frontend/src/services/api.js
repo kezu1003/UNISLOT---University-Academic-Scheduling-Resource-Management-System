@@ -101,7 +101,14 @@ export const coordinatorAPI = {
   
   // Workload
   getAllWorkload: (params) => api.get('/coordinator/workload', { params }),
-  getStaffWorkload: (staffId) => api.get(`/coordinator/workload/${staffId}`)
+  getStaffWorkload: (staffId) => api.get(`/coordinator/workload/${staffId}`),
+  exportWorkloadReport: (params) => api.get('/coordinator/workload/export', {
+    params,
+    responseType: 'blob', // For file download
+    headers: {
+      Accept: 'application/pdf'
+    }
+  })
 };
 
 export default api;

@@ -538,6 +538,78 @@ router.get('/workload', async (req, res) => {
   }
 });
 
+// @route   GET /api/coordinator/workload/export
+// @desc    Export workload report as PDF
+router.get('/workload/export', async (req, res) => {
+  try {
+    console.log('📊 Exporting workload report...');
+
+    const { location, status } = req.query;
+    const query = { isActive: true };
+
+    if (location) query.location = location;
+
+    const staff = await Staff.find(query)
+      .select('name email priority specialization location currentWorkload maxWorkload')
+      .sort({ currentWorkload: -1 })
+      .lean();
+
+    const workloadData = staff.map(s => {
+      const percentage = s.maxWorkload > 0 ? (s.currentWorkload / s.maxWorkload) * 100 : 0;
+      let calculatedStatus = 'available';
+      if (percentage > 100) calculatedStatus = 'overloaded';
+      else if (percentage >= 90) calculatedStatus = 'near-capacity';
+      else if (percentage >= 70) calculatedStatus = 'moderate';
+
+      return {
+        _id: s._id,
+        name: s.name,
+        email: s.email,
+        priority: s.priority,
+        specialization: s.specialization || [],
+        location: s.location,
+        currentWorkload: s.currentWorkload || 0,
+        maxWorkload: s.maxWorkload || 20,
+        workloadPercentage: Math.round(percentage),
+        availableHours: (s.maxWorkload || 20) - (s.currentWorkload || 0),
+        status: calculatedStatus
+      };
+    }).filter(s => {
+      if (status) {
+        return s.status === status;
+      }
+      return true;
+    });
+
+    const stats = {
+      total: workloadData.length,
+      overloaded: workloadData.filter(s => s.status === 'overloaded').length,
+      nearCapacity: workloadData.filter(s => s.status === 'near-capacity').length,
+      moderate: workloadData.filter(s => s.status === 'moderate').length,
+      available: workloadData.filter(s => s.status === 'available').length,
+      averageWorkload: workloadData.length > 0 
+        ? Math.round(workloadData.reduce((sum, s) => sum + s.currentWorkload, 0) / workloadData.length)
+        : 0
+    };
+
+    const { generateWorkloadPDF } = require('../utils/pdfGenerator');
+    const pdfBuffer = await generateWorkloadPDF(workloadData, stats);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=workload-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('❌ Workload export error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error exporting workload report',
+      error: error.message
+    });
+  }
+});
+
 // @route   GET /api/coordinator/workload/:staffId
 // @desc    Get detailed workload for specific staff
 router.get('/workload/:staffId', async (req, res) => {
@@ -611,6 +683,76 @@ router.get('/workload/:staffId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching staff workload',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/coordinator/workload/export
+// @desc    Export workload report as PDF
+router.get('/workload/export', async (req, res) => {
+  try {
+    console.log('📊 Exporting workload report...');
+    
+    const { location, specialization } = req.query;
+    const query = { isActive: true };
+
+    if (location) query.location = location;
+    if (specialization) query.specialization = specialization;
+
+    const staff = await Staff.find(query)
+      .select('name email priority specialization location currentWorkload maxWorkload')
+      .sort({ currentWorkload: -1 })
+      .lean();
+
+    const workloadData = staff.map(s => {
+      const percentage = s.maxWorkload > 0 ? (s.currentWorkload / s.maxWorkload) * 100 : 0;
+      let status = 'available';
+      if (percentage > 100) status = 'overloaded';
+      else if (percentage >= 90) status = 'near-capacity';
+      else if (percentage >= 70) status = 'moderate';
+
+      return {
+        _id: s._id,
+        name: s.name,
+        email: s.email,
+        priority: s.priority,
+        specialization: s.specialization || [],
+        location: s.location,
+        currentWorkload: s.currentWorkload || 0,
+        maxWorkload: s.maxWorkload || 20,
+        workloadPercentage: Math.round(percentage),
+        availableHours: (s.maxWorkload || 20) - (s.currentWorkload || 0),
+        status
+      };
+    });
+
+    const stats = {
+      total: workloadData.length,
+      overloaded: workloadData.filter(s => s.status === 'overloaded').length,
+      nearCapacity: workloadData.filter(s => s.status === 'near-capacity').length,
+      moderate: workloadData.filter(s => s.status === 'moderate').length,
+      available: workloadData.filter(s => s.status === 'available').length,
+      averageWorkload: workloadData.length > 0 
+        ? Math.round(workloadData.reduce((sum, s) => sum + s.currentWorkload, 0) / workloadData.length)
+        : 0
+    };
+
+    // Generate PDF
+    const { generateWorkloadPDF } = require('../utils/pdfGenerator');
+    const pdfBuffer = await generateWorkloadPDF(workloadData, stats);
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=workload-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('❌ Workload export error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error exporting workload report',
       error: error.message
     });
   }
