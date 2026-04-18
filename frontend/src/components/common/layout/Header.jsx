@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   FiMenu, FiBell, FiSearch, FiSun, FiMoon,
   FiChevronDown, FiUser, FiSettings, FiLogOut
@@ -26,6 +27,7 @@ const Header = ({ onMenuClick, title }) => {
   ];
 
   const unreadCount = notifications.filter(n => n.unread).length;
+  const baseRoute = user?.role ? `/${user.role}` : '';
 
   return (
     <header className="header">
@@ -111,14 +113,22 @@ const Header = ({ onMenuClick, title }) => {
                 </div>
               </div>
               <div className="dropdown-divider" />
-              <a href="/profile" className="dropdown-item">
+              <Link
+                to={`${baseRoute}/profile`}
+                className="dropdown-item"
+                onClick={() => setShowProfile(false)}
+              >
                 <FiUser size={18} />
                 <span>My Profile</span>
-              </a>
-              <a href="/settings" className="dropdown-item">
+              </Link>
+              <Link
+                to={`${baseRoute}/settings`}
+                className="dropdown-item"
+                onClick={() => setShowProfile(false)}
+              >
                 <FiSettings size={18} />
                 <span>Settings</span>
-              </a>
+              </Link>
               <div className="dropdown-divider" />
               <button className="dropdown-item danger" onClick={logout}>
                 <FiLogOut size={18} />

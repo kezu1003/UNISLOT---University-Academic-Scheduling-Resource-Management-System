@@ -17,6 +17,8 @@ import StaffManagement from './pages/admin/StaffManagement';
 import BatchManagement from './pages/admin/BatchManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import HallManagement from './pages/admin/HallManagement';
+import AccountProfile from './pages/account/Profile';
+import AccountSettings from './pages/account/Settings';
 
 // LIC Pages
 import LICDashboard from './pages/lic/Dashboard';
@@ -51,6 +53,8 @@ function App() {
             <Route path="batches" element={<BatchManagement />} />
             <Route path="courses" element={<CourseManagement />} />
             <Route path="halls" element={<HallManagement />} />
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="settings" element={<AccountSettings />} />
           </Route>
 
           {/* LIC Routes */}
@@ -62,6 +66,8 @@ function App() {
             <Route index element={<LICDashboard />} />
             <Route path="courses" element={<CourseAssignment />} />
             <Route path="assign" element={<StaffSelection />} />
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="settings" element={<AccountSettings />} />
           </Route>
 
           {/* Coordinator Routes */}
@@ -75,6 +81,8 @@ function App() {
             <Route path="schedule" element={<TimetableScheduler />} />
             <Route path="workload" element={<WorkloadOverview />} />
             <Route path="publish" element={<PublishTimetable />} />
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="settings" element={<AccountSettings />} />
           </Route>
 
           {/* Redirects */}

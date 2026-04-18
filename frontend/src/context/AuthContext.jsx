@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import api, { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -27,6 +27,18 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const response = await authAPI.getMe();
+      setUser(response.data.data);
+      return response.data.data;
+    } catch (err) {
+      localStorage.removeItem('token');
+      setUser(null);
+      throw err;
     }
   };
 
@@ -77,11 +89,13 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    setUser,
     loading,
     error,
     login,
     register,
     logout,
+    refreshUser,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isLIC: user?.role === 'lic',
