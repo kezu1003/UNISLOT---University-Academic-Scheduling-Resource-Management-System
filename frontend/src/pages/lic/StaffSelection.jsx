@@ -464,7 +464,9 @@ const StaffSelection = () => {
 
       // Auto-select course if ID provided
       if (selectedCourseId) {
-        const course = coursesData.find(c => c._id === selectedCourseId);
+        const course = coursesData.find(
+          (c) => String(c._id) === String(selectedCourseId)
+        );
         if (course) {
           setSelectedCourse(course);
           setSelectedInstructors(course.instructors || []);

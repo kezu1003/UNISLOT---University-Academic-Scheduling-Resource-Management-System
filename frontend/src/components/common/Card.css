@@ -1,0 +1,13 @@
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-header-content {
+  flex: 1;
+}
+
+.card-header-action {
+  margin-left: var(--spacing-4);
+}

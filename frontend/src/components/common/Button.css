@@ -1,0 +1,13 @@
+.btn-full {
+  width: 100%;
+}
+
+.btn-loading {
+  cursor: wait;
+}
+
+.btn-icon-left,
+.btn-icon-right {
+  display: flex;
+  align-items: center;
+}
