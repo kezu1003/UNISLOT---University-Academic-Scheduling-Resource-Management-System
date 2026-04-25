@@ -361,7 +361,8 @@ router.post('/halls', [
   body('hallName').notEmpty().withMessage('Hall name is required'),
   body('capacity').isInt({ min: 1 }).withMessage('Capacity must be positive'),
   body('location').notEmpty().withMessage('Location is required'),
-  body('type').isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type')
+  body('type').isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type'),
+  body('status').optional().isIn(['Active', 'Maintenance', 'Out of Service']).withMessage('Invalid status')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -398,12 +399,14 @@ router.post('/halls', [
 // @access  Admin only
 router.get('/halls', async (req, res) => {
   try {
-    const { location, type, minCapacity } = req.query;
+    const { location, type, minCapacity, status } = req.query;
     const query = { isActive: true };
 
     if (location) query.location = location;
     if (type) query.type = type;
     if (minCapacity) query.capacity = { $gte: parseInt(minCapacity) };
+    if (status) query.status = status;
+    else query.status = { $ne: 'Out of Service' }; // By default, don't show out of service halls
 
     const halls = await Hall.find(query).sort('hallCode');
 
@@ -428,7 +431,8 @@ router.put('/halls/:id', [
   body('hallName').optional().notEmpty().withMessage('Hall name is required'),
   body('capacity').optional().isInt({ min: 1 }).withMessage('Capacity must be positive'),
   body('location').optional().notEmpty().withMessage('Location is required'),
-  body('type').optional().isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type')
+  body('type').optional().isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type'),
+  body('status').optional().isIn(['Active', 'Maintenance', 'Out of Service']).withMessage('Invalid status')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -473,13 +477,27 @@ router.put('/halls/:id', [
 });
 
 // @route   DELETE /api/admin/halls/:id
-// @desc    Delete hall (soft delete)
+// @desc    Remove hall for maintenance
 // @access  Admin only
 router.delete('/halls/:id', async (req, res) => {
   try {
+    const maintenanceIssue = req.body?.maintenanceIssue?.trim();
+
+    if (!maintenanceIssue) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maintenance issue is required'
+      });
+    }
+
     const hall = await Hall.findByIdAndUpdate(
       req.params.id,
-      { isActive: false },
+      {
+        status: 'Maintenance',
+        isActive: false,
+        maintenanceIssue,
+        maintenanceMarkedAt: new Date()
+      },
       { new: true }
     );
 
@@ -492,12 +510,12 @@ router.delete('/halls/:id', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Hall deleted successfully'
+      message: 'Hall removed for maintenance successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error deleting hall',
+      message: 'Error removing hall for maintenance',
       error: error.message
     });
   }

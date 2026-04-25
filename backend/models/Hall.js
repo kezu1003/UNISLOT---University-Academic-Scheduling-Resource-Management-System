@@ -30,9 +30,23 @@ const hallSchema = new mongoose.Schema({
     type: String,
     enum: ['Projector', 'AC', 'Computers', 'Whiteboard', 'Sound System']
   }],
+  status: {
+    type: String,
+    enum: ['Active', 'Maintenance', 'Out of Service'],
+    default: 'Active'
+  },
   isActive: {
     type: Boolean,
     default: true
+  },
+  maintenanceIssue: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  maintenanceMarkedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

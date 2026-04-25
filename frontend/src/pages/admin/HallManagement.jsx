@@ -14,7 +14,7 @@ import Table from '../../components/common/Table';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
 import { adminAPI } from '../../services/api';
-import { LOCATIONS, HALL_TYPES } from '../../utils/constants';
+import { LOCATIONS, HALL_TYPES, HALL_STATUSES } from '../../utils/constants';
 import { toast } from 'react-toastify';
 import './HallManagement.css';
 
@@ -82,6 +82,10 @@ const VALIDATION_RULES = {
     required: true,
     message: 'Please select a hall type'
   },
+  status: {
+    required: true,
+    message: 'Please select a status'
+  },
   facilities: {
     validate: (value) => {
       // Facilities are optional, so no error if empty
@@ -97,6 +101,7 @@ const INITIAL_FORM_DATA = {
   capacity: 50,
   location: 'Malabe',
   type: 'Lecture Hall',
+  status: 'Active',
   facilities: []
 };
 
@@ -106,6 +111,7 @@ const INITIAL_ERRORS = {
   capacity: '',
   location: '',
   type: '',
+  status: '',
   facilities: '',
   general: ''
 };
@@ -116,7 +122,13 @@ const INITIAL_TOUCHED = {
   capacity: false,
   location: false,
   type: false,
+  status: false,
   facilities: false
+};
+
+const INITIAL_MAINTENANCE_FORM = {
+  issue: '',
+  error: ''
 };
 
 // Validated Input Component
@@ -492,6 +504,7 @@ const HallManagement = () => {
 
   // Delete state
   const [deleting, setDeleting] = useState(false);
+  const [maintenanceForm, setMaintenanceForm] = useState(INITIAL_MAINTENANCE_FORM);
 
   // Fetch halls
   const fetchHalls = useCallback(async () => {
@@ -724,20 +737,28 @@ const HallManagement = () => {
     }
   };
 
-  // Handle delete
+  // Handle remove for maintenance
   const handleDelete = async () => {
     if (!selectedHall) return;
+
+    const maintenanceIssue = maintenanceForm.issue.trim();
+    if (!maintenanceIssue) {
+      setMaintenanceForm((prev) => ({
+        ...prev,
+        error: 'Please enter the maintenance issue before removing this hall'
+      }));
+      return;
+    }
 
     setDeleting(true);
 
     try {
-      await adminAPI.deleteHall(selectedHall._id);
-      toast.success('Hall deleted successfully');
-      setShowDeleteModal(false);
-      setSelectedHall(null);
+      await adminAPI.deleteHall(selectedHall._id, { maintenanceIssue });
+      toast.success('Hall removed for maintenance successfully');
+      closeMaintenanceModal();
       fetchHalls();
     } catch (error) {
-      toast.error('Failed to delete hall');
+      toast.error(error.response?.data?.message || 'Failed to remove hall for maintenance');
     } finally {
       setDeleting(false);
     }
@@ -759,6 +780,12 @@ const HallManagement = () => {
     resetForm();
   };
 
+  const closeMaintenanceModal = () => {
+    setShowDeleteModal(false);
+    setSelectedHall(null);
+    setMaintenanceForm(INITIAL_MAINTENANCE_FORM);
+  };
+
   // Open edit modal
   const openEditModal = (hall) => {
     setSelectedHall(hall);
@@ -768,6 +795,7 @@ const HallManagement = () => {
       capacity: hall.capacity,
       location: hall.location,
       type: hall.type,
+      status: hall.status || 'Active',
       facilities: hall.facilities || []
     });
     setErrors(INITIAL_ERRORS);
@@ -836,6 +864,16 @@ const HallManagement = () => {
       )
     },
     {
+      key: 'status',
+      title: 'Status',
+      width: '120px',
+      render: (status) => (
+        <Badge variant={status === 'Active' ? 'success' : status === 'Maintenance' ? 'warning' : 'danger'}>
+          {status || 'Active'}
+        </Badge>
+      )
+    },
+    {
       key: 'facilities',
       title: 'Facilities',
       render: (facilities) => (
@@ -859,7 +897,7 @@ const HallManagement = () => {
       render: (_, row) => (
         <div className="action-buttons">
           <button 
-            className="action-btn" 
+            className="action-btn edit" 
             onClick={() => openEditModal(row)}
             title="Edit"
           >
@@ -867,10 +905,14 @@ const HallManagement = () => {
           </button>
           <button 
             className="action-btn danger" 
-            onClick={() => { setSelectedHall(row); setShowDeleteModal(true); }}
-            title="Delete"
+            onClick={() => {
+              setSelectedHall(row);
+              setMaintenanceForm(INITIAL_MAINTENANCE_FORM);
+              setShowDeleteModal(true);
+            }}
+            title="Remove for Maintenance"
           >
-            <FiTrash2 size={16} />
+            <FiAlertTriangle size={16} />
           </button>
         </div>
       )
@@ -1122,6 +1164,21 @@ const HallManagement = () => {
             />
           </div>
 
+          {/* Status */}
+          <div className="form-row">
+            <ValidatedSelect
+              label="Status"
+              name="status"
+              options={HALL_STATUSES}
+              value={formData.status}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.status}
+              touched={touched.status}
+              required
+            />
+          </div>
+
           {/* Capacity */}
           <CapacitySlider
             label="Seating Capacity"
@@ -1178,6 +1235,10 @@ const HallManagement = () => {
                   <span className="summary-value">{formData.location}</span>
                 </div>
                 <div className="summary-item">
+                  <span className="summary-label">Status</span>
+                  <span className="summary-value">{formData.status}</span>
+                </div>
+                <div className="summary-item">
                   <span className="summary-label">Facilities</span>
                   <span className="summary-value">
                     {formData.facilities.length > 0 
@@ -1191,34 +1252,35 @@ const HallManagement = () => {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Remove for Maintenance Modal */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setSelectedHall(null); }}
-        title="Confirm Delete"
+        onClose={closeMaintenanceModal}
+        title="Remove Hall for Maintenance"
         size="sm"
         footer={
           <>
             <Button 
               variant="secondary" 
-              onClick={() => { setShowDeleteModal(false); setSelectedHall(null); }}
+              onClick={closeMaintenanceModal}
               disabled={deleting}
             >
               Cancel
             </Button>
             <Button 
-              variant="danger" 
+              variant="warning" 
               onClick={handleDelete}
               loading={deleting}
+              disabled={deleting || !maintenanceForm.issue.trim()}
             >
-              {deleting ? 'Deleting...' : 'Delete Hall'}
+              {deleting ? 'Removing...' : 'Remove Hall'}
             </Button>
           </>
         }
       >
         <div className="delete-warning">
           <FiAlertTriangle className="warning-icon" />
-          <p>Are you sure you want to delete this hall?</p>
+          <p>This hall will be removed from active scheduling because of a maintenance issue.</p>
           {selectedHall && (
             <div className="delete-target-info">
               <span className="hall-code-delete">{selectedHall.hallCode}</span>
@@ -1228,6 +1290,32 @@ const HallManagement = () => {
               </p>
             </div>
           )}
+          <div className="form-group maintenance-issue-group">
+            <label htmlFor="maintenanceIssue" className="form-label required">
+              Maintenance Issue
+            </label>
+            <textarea
+              id="maintenanceIssue"
+              name="maintenanceIssue"
+              className={`form-input maintenance-textarea ${maintenanceForm.error ? 'error' : ''}`}
+              placeholder="Enter the maintenance issue for this hall"
+              rows={4}
+              value={maintenanceForm.issue}
+              onChange={(e) => {
+                const value = e.target.value;
+                setMaintenanceForm((prev) => ({
+                  issue: value,
+                  error: value.trim() ? '' : prev.error
+                }));
+              }}
+              disabled={deleting}
+            />
+            {maintenanceForm.error && (
+              <span className="form-error">
+                <FiAlertCircle size={12} /> {maintenanceForm.error}
+              </span>
+            )}
+          </div>
           <p className="warning-text">This will affect all scheduled classes in this hall.</p>
         </div>
       </Modal>
