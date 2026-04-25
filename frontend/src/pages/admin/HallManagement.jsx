@@ -753,22 +753,12 @@ const HallManagement = () => {
     setDeleting(true);
 
     try {
-<<<<<<< Updated upstream
-      await adminAPI.deleteHall(selectedHall._id);
-      toast.success('Hall moved to maintenance successfully');
-      setShowDeleteModal(false);
-      setSelectedHall(null);
-      fetchHalls();
-    } catch (error) {
-      toast.error('Failed to move hall to maintenance');
-=======
       await adminAPI.deleteHall(selectedHall._id, { maintenanceIssue });
       toast.success('Hall removed for maintenance successfully');
       closeMaintenanceModal();
       fetchHalls();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to remove hall for maintenance');
->>>>>>> Stashed changes
     } finally {
       setDeleting(false);
     }
@@ -914,11 +904,6 @@ const HallManagement = () => {
             <FiEdit2 size={16} />
           </button>
           <button 
-<<<<<<< Updated upstream
-            className="action-btn warning" 
-            onClick={() => { setSelectedHall(row); setShowDeleteModal(true); }}
-            title="Move to Maintenance"
-=======
             className="action-btn danger" 
             onClick={() => {
               setSelectedHall(row);
@@ -926,7 +911,6 @@ const HallManagement = () => {
               setShowDeleteModal(true);
             }}
             title="Remove for Maintenance"
->>>>>>> Stashed changes
           >
             <FiAlertTriangle size={16} />
           </button>
@@ -1271,13 +1255,8 @@ const HallManagement = () => {
       {/* Remove for Maintenance Modal */}
       <Modal
         isOpen={showDeleteModal}
-<<<<<<< Updated upstream
-        onClose={() => { setShowDeleteModal(false); setSelectedHall(null); }}
-        title="Move to Maintenance"
-=======
         onClose={closeMaintenanceModal}
         title="Remove Hall for Maintenance"
->>>>>>> Stashed changes
         size="sm"
         footer={
           <>
@@ -1294,22 +1273,14 @@ const HallManagement = () => {
               loading={deleting}
               disabled={deleting || !maintenanceForm.issue.trim()}
             >
-<<<<<<< Updated upstream
-              {deleting ? 'Moving...' : 'Move to Maintenance'}
-=======
               {deleting ? 'Removing...' : 'Remove Hall'}
->>>>>>> Stashed changes
             </Button>
           </>
         }
       >
         <div className="delete-warning">
           <FiAlertTriangle className="warning-icon" />
-<<<<<<< Updated upstream
-          <p>Are you sure you want to move this hall to maintenance?</p>
-=======
           <p>This hall will be removed from active scheduling because of a maintenance issue.</p>
->>>>>>> Stashed changes
           {selectedHall && (
             <div className="delete-target-info">
               <span className="hall-code-delete">{selectedHall.hallCode}</span>
@@ -1319,9 +1290,6 @@ const HallManagement = () => {
               </p>
             </div>
           )}
-<<<<<<< Updated upstream
-          <p className="warning-text">This hall will be unavailable for scheduling until moved back to active status.</p>
-=======
           <div className="form-group maintenance-issue-group">
             <label htmlFor="maintenanceIssue" className="form-label required">
               Maintenance Issue
@@ -1349,7 +1317,6 @@ const HallManagement = () => {
             )}
           </div>
           <p className="warning-text">This will affect all scheduled classes in this hall.</p>
->>>>>>> Stashed changes
         </div>
       </Modal>
     </div>

@@ -477,11 +477,7 @@ router.put('/halls/:id', [
 });
 
 // @route   DELETE /api/admin/halls/:id
-<<<<<<< Updated upstream
-// @desc    Move hall to maintenance
-=======
 // @desc    Remove hall for maintenance
->>>>>>> Stashed changes
 // @access  Admin only
 router.delete('/halls/:id', async (req, res) => {
   try {
@@ -496,15 +492,12 @@ router.delete('/halls/:id', async (req, res) => {
 
     const hall = await Hall.findByIdAndUpdate(
       req.params.id,
-<<<<<<< Updated upstream
-      { status: 'Maintenance' },
-=======
       {
+        status: 'Maintenance',
         isActive: false,
         maintenanceIssue,
         maintenanceMarkedAt: new Date()
       },
->>>>>>> Stashed changes
       { new: true }
     );
 
@@ -517,20 +510,12 @@ router.delete('/halls/:id', async (req, res) => {
 
     res.json({
       success: true,
-<<<<<<< Updated upstream
-      message: 'Hall moved to maintenance successfully'
-=======
       message: 'Hall removed for maintenance successfully'
->>>>>>> Stashed changes
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-<<<<<<< Updated upstream
-      message: 'Error moving hall to maintenance',
-=======
       message: 'Error removing hall for maintenance',
->>>>>>> Stashed changes
       error: error.message
     });
   }
