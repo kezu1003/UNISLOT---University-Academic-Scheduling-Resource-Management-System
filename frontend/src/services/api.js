@@ -69,7 +69,7 @@ export const adminAPI = {
   getHalls: (params) => api.get('/admin/halls', { params }),
   createHall: (data) => api.post('/admin/halls', data),
   updateHall: (id, data) => api.put(`/admin/halls/${id}`, data),
-  deleteHall: (id) => api.delete(`/admin/halls/${id}`),
+  deleteHall: (id, data) => api.delete(`/admin/halls/${id}`, { data }),
   
   // Courses
   getCourses: (params) => api.get('/admin/courses', { params }),

@@ -38,6 +38,15 @@ const hallSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  maintenanceIssue: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  maintenanceMarkedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

@@ -793,6 +793,17 @@
   color: var(--text-primary);
 }
 
+.maintenance-issue-group {
+  margin-top: var(--spacing-4);
+  text-align: left;
+}
+
+.maintenance-textarea {
+  min-height: 110px;
+  resize: vertical;
+  padding: var(--spacing-3);
+}
+
 .delete-target-info {
   background-color: var(--neutral-100);
   padding: var(--spacing-4);
