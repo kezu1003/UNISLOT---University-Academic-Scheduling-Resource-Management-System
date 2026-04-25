@@ -34,11 +34,14 @@ const LICDashboard = () => {
 
   // Calculate stats
   const stats = {
-    totalCourses: courses.length,
-    assignedCourses: courses.filter(c => c.instructors?.length > 0).length,
-    pendingCourses: courses.filter(c => !c.instructors || c.instructors.length === 0).length,
-    totalBatches: courses.reduce((sum, c) => sum + (c.batches?.length || 0), 0)
+    totalCourses: courses?.length || 0,
+    assignedCourses: courses?.filter(c => c?.instructors?.length > 0).length || 0,
+    pendingCourses: courses?.filter(c => !c?.instructors || c?.instructors?.length === 0).length || 0,
+    totalBatches: courses?.reduce((sum, c) => sum + (c?.batches?.length || 0), 0) || 0
   };
+
+  console.log('📊 Dashboard Stats:', stats);
+  console.log('📚 Courses Data:', courses);
 
   if (loading) {
     return <Loading text="Loading dashboard..." />;
@@ -113,23 +116,23 @@ const LICDashboard = () => {
             ) : (
               <div className="course-list">
                 {courses
-                  .filter(c => !c.instructors || c.instructors.length === 0)
+                  .filter(c => !c?.instructors || c?.instructors?.length === 0)
                   .slice(0, 5)
                   .map(course => (
                     <Link 
-                      to={`/lic/assign?course=${course._id}`} 
-                      key={course._id}
+                      to={`/lic/assign?course=${course?._id}`} 
+                      key={course?._id}
                       className="course-item pending"
                     >
                       <div className="course-info">
-                        <span className="course-code">{course.courseCode}</span>
-                        <span className="course-name">{course.courseName}</span>
+                        <span className="course-code">{course?.courseCode || 'N/A'}</span>
+                        <span className="course-name">{course?.courseName || 'N/A'}</span>
                       </div>
                       <div className="course-meta">
                         <Badge variant="warning">Pending</Badge>
                         <span className="batch-count">
                           <FiUsers size={14} />
-                          {course.batches?.length || 0} batches
+                          {course?.batches?.length || 0} batches
                         </span>
                       </div>
                       <FiArrowRight className="arrow" />
@@ -146,25 +149,32 @@ const LICDashboard = () => {
             <h3>My Courses</h3>
           </CardHeader>
           <CardBody className="no-padding">
-            <div className="course-list">
-              {courses.slice(0, 6).map(course => (
-                <div key={course._id} className="course-item">
-                  <div className="course-info">
-                    <span className="course-code">{course.courseCode}</span>
-                    <span className="course-name">{course.courseName}</span>
+            {courses && courses.length > 0 ? (
+              <div className="course-list">
+                {courses.slice(0, 6).map(course => (
+                  <div key={course?._id} className="course-item">
+                    <div className="course-info">
+                      <span className="course-code">{course?.courseCode || 'N/A'}</span>
+                      <span className="course-name">{course?.courseName || 'N/A'}</span>
+                    </div>
+                    <div className="course-meta">
+                      <Badge variant={course?.instructors?.length > 0 ? 'success' : 'warning'}>
+                        {course?.instructors?.length || 0} Instructors
+                      </Badge>
+                      <span className="hours">
+                        <FiClock size={14} />
+                        {((course?.lectureHours || 0) + (course?.tutorialHours || 0) + (course?.labHours || 0))} hrs
+                      </span>
+                    </div>
                   </div>
-                  <div className="course-meta">
-                    <Badge variant={course.instructors?.length > 0 ? 'success' : 'warning'}>
-                      {course.instructors?.length || 0} Instructors
-                    </Badge>
-                    <span className="hours">
-                      <FiClock size={14} />
-                      {course.lectureHours + course.tutorialHours + course.labHours} hrs
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <FiBook size={48} />
+                <p>No courses assigned</p>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>

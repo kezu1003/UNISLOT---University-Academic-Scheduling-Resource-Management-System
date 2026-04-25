@@ -19,15 +19,19 @@ router.get('/courses', async (req, res) => {
       lic: req.user._id,
       isActive: true 
     })
+    .select('courseCode courseName credits lectureHours tutorialHours labHours year semester specialization instructors batches lic')
     .populate('batches', 'batchCode studentCount')
     .populate('instructors.staff', 'name email priority currentWorkload maxWorkload')
     .sort('courseCode');
+
+    console.log(`📚 LIC Courses - Found ${courses.length} courses for LIC ${req.user._id}`);
 
     res.json({
       success: true,
       data: courses
     });
   } catch (error) {
+    console.error('❌ LIC courses fetch error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching courses',
