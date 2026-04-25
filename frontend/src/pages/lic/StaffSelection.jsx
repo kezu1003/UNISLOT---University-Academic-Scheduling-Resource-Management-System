@@ -453,14 +453,20 @@ const StaffSelection = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('📚 Fetching LIC courses and staff...');
       const [coursesRes, staffRes] = await Promise.all([
         licAPI.getCourses(),
         licAPI.getStaff()
       ]);
 
       const coursesData = coursesRes.data.data || [];
+      const staffData = staffRes.data.data || [];
+      
+      console.log('✅ Courses fetched:', coursesData);
+      console.log('✅ Staff fetched:', staffData);
+      
       setCourses(coursesData);
-      setStaff(staffRes.data.data || []);
+      setStaff(staffData);
 
       // Auto-select course if ID provided
       if (selectedCourseId) {
@@ -474,7 +480,7 @@ const StaffSelection = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('❌ Error fetching data:', error);
       toast.error('Failed to fetch data');
     } finally {
       setLoading(false);
@@ -498,7 +504,7 @@ const StaffSelection = () => {
     // Validate individual instructors
     const errors = {};
     selectedInstructors.forEach(instructor => {
-      const staffId = instructor.staff?._id || instructor.staff;
+      const staffId = typeof instructor.staff === 'object' ? instructor.staff?._id : instructor.staff;
       errors[staffId] = {
         type: !instructor.type,
         priority: !instructor.priority
@@ -530,6 +536,7 @@ const StaffSelection = () => {
 
   // Handle course selection
   const handleCourseSelect = (course) => {
+    console.log('📌 Course selected:', course);
     setSelectedCourse(course);
     setSelectedInstructors(course.instructors || []);
     setTouched(prev => ({ ...prev, course: true }));
@@ -537,6 +544,8 @@ const StaffSelection = () => {
 
   // Add instructor with validation
   const addInstructor = (staffMember, type) => {
+    console.log(`➕ Adding instructor: ${staffMember.name} as ${type}`, staffMember);
+    
     // Validate max count
     if (selectedInstructors.length >= VALIDATION_RULES.instructors.maxCount) {
       toast.warning('Maximum 3 instructors allowed per course');
@@ -544,8 +553,14 @@ const StaffSelection = () => {
     }
 
     // Check if already added
-    if (selectedInstructors.some(i => (i.staff?._id || i.staff) === staffMember._id)) {
+    const alreadyAdded = selectedInstructors.some(i => {
+      const instructorStaffId = typeof i.staff === 'object' ? i.staff?._id : i.staff;
+      return instructorStaffId === staffMember._id;
+    });
+
+    if (alreadyAdded) {
       toast.warning('This instructor is already assigned');
+      console.warn(`⚠️ ${staffMember.name} already added`);
       return;
     }
 
@@ -557,7 +572,9 @@ const StaffSelection = () => {
     }
 
     // Determine priority
-    const usedPriorities = selectedInstructors.map(i => i.priority);
+    const usedPriorities = selectedInstructors
+      .map(i => i.priority)
+      .filter(p => p !== null && p !== undefined);
     let newPriority = 1;
     while (usedPriorities.includes(newPriority) && newPriority <= 3) {
       newPriority++;
@@ -573,6 +590,7 @@ const StaffSelection = () => {
       type: type
     };
 
+    console.log('✅ Instructor added:', newInstructor);
     setSelectedInstructors([...selectedInstructors, newInstructor]);
     setTouched(prev => ({ ...prev, instructors: true }));
     

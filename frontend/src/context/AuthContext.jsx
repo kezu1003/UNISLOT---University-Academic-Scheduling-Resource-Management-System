@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+<<<<<<< HEAD
 import api from '../services/api';
+=======
+import api, { authAPI } from '../services/api';
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 
 const AuthContext = createContext(null);
 
@@ -30,6 +34,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const refreshUser = async () => {
+    try {
+      const response = await authAPI.getMe();
+      setUser(response.data.data);
+      return response.data.data;
+    } catch (err) {
+      localStorage.removeItem('token');
+      setUser(null);
+      throw err;
+    }
+  };
+
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
   const login = async (email, password) => {
     try {
       setError(null);
@@ -77,11 +96,19 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+<<<<<<< HEAD
+=======
+    setUser,
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
     loading,
     error,
     login,
     register,
     logout,
+<<<<<<< HEAD
+=======
+    refreshUser,
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isLIC: user?.role === 'lic',
@@ -103,4 +130,8 @@ export const useAuth = () => {
   return context;
 };
 
+<<<<<<< HEAD
 export default AuthContext;
+=======
+export default AuthContext;
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05

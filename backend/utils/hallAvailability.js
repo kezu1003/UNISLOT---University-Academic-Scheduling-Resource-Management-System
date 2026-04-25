@@ -17,7 +17,7 @@ const getHallAvailability = async ({
     throw error;
   }
 
-  const hallQuery = { isActive: true };
+  const hallQuery = { isActive: true, status: 'Active' };
   if (type) hallQuery.type = type;
   if (location) hallQuery.location = location;
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
+const { getHallAvailability } = require('../utils/hallAvailability');
 
 // Models
 let Timetable, Staff, Course, Batch, Hall;
@@ -31,6 +32,39 @@ router.use(protect);
 router.use(authorize('coordinator', 'admin'));
 
 // ==================== TIMETABLE ROUTES ====================
+
+const validateHallCapacityForBatch = async (batchId, hallId) => {
+  const [batch, hall] = await Promise.all([
+    Batch.findOne({ _id: batchId, isActive: true }).lean(),
+    Hall.findOne({ _id: hallId, isActive: true }).lean()
+  ]);
+
+  if (!batch) {
+    return {
+      success: false,
+      status: 404,
+      message: 'Selected batch not found or inactive'
+    };
+  }
+
+  if (!hall) {
+    return {
+      success: false,
+      status: 404,
+      message: 'Selected hall not found or inactive'
+    };
+  }
+
+  if (batch.studentCount > hall.capacity) {
+    return {
+      success: false,
+      status: 400,
+      message: `Hall ${hall.hallCode} capacity (${hall.capacity}) is too small for batch ${batch.batchCode} (${batch.studentCount} students)`
+    };
+  }
+
+  return { success: true, batch, hall };
+};
 
 // @route   GET /api/coordinator/timetable
 // @desc    Get all timetable entries
@@ -73,6 +107,32 @@ router.get('/timetable', async (req, res) => {
   }
 });
 
+// @route   GET /api/coordinator/hall-availability
+// @desc    Get hall or lab availability for a selected time slot
+router.get('/hall-availability', async (req, res) => {
+  try {
+    const availability = await getHallAvailability({
+      day: req.query.day,
+      startTime: req.query.startTime,
+      endTime: req.query.endTime,
+      type: req.query.type,
+      location: req.query.location,
+      batchId: req.query.batchId,
+      excludeEntryId: req.query.excludeEntryId
+    });
+
+    res.json({
+      success: true,
+      data: availability
+    });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error fetching hall availability'
+    });
+  }
+});
+
 // @route   POST /api/coordinator/timetable
 // @desc    Create new timetable entry
 router.post('/timetable', async (req, res) => {
@@ -87,6 +147,14 @@ router.post('/timetable', async (req, res) => {
         success: false,
         message: 'Missing required fields',
         required: ['course', 'batch', 'instructor', 'hall', 'day', 'startTime', 'endTime', 'type']
+      });
+    }
+
+    const capacityCheck = await validateHallCapacityForBatch(batch, hall);
+    if (!capacityCheck.success) {
+      return res.status(capacityCheck.status).json({
+        success: false,
+        message: capacityCheck.message
       });
     }
 
@@ -126,6 +194,54 @@ router.post('/timetable', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error creating timetable entry',
+      error: error.message
+    });
+  }
+});
+
+// @route   PUT /api/coordinator/timetable/:id
+// @desc    Update timetable entry with hall capacity validation
+router.put('/timetable/:id', async (req, res) => {
+  try {
+    const existingTimetable = await Timetable.findById(req.params.id).lean();
+
+    if (!existingTimetable) {
+      return res.status(404).json({
+        success: false,
+        message: 'Timetable entry not found'
+      });
+    }
+
+    const batchId = req.body.batch || existingTimetable.batch;
+    const hallId = req.body.hall || existingTimetable.hall;
+    const capacityCheck = await validateHallCapacityForBatch(batchId, hallId);
+
+    if (!capacityCheck.success) {
+      return res.status(capacityCheck.status).json({
+        success: false,
+        message: capacityCheck.message
+      });
+    }
+
+    const timetable = await Timetable.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, approvedBy: req.user._id },
+      { new: true, runValidators: true }
+    )
+      .populate('course', 'courseCode courseName')
+      .populate('batch', 'batchCode studentCount')
+      .populate('instructor', 'name email')
+      .populate('hall', 'hallCode hallName');
+
+    res.json({
+      success: true,
+      message: 'Timetable entry updated',
+      data: timetable
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating timetable',
       error: error.message
     });
   }
@@ -422,6 +538,78 @@ router.get('/workload', async (req, res) => {
   }
 });
 
+// @route   GET /api/coordinator/workload/export
+// @desc    Export workload report as PDF
+router.get('/workload/export', async (req, res) => {
+  try {
+    console.log('📊 Exporting workload report...');
+
+    const { location, status } = req.query;
+    const query = { isActive: true };
+
+    if (location) query.location = location;
+
+    const staff = await Staff.find(query)
+      .select('name email priority specialization location currentWorkload maxWorkload')
+      .sort({ currentWorkload: -1 })
+      .lean();
+
+    const workloadData = staff.map(s => {
+      const percentage = s.maxWorkload > 0 ? (s.currentWorkload / s.maxWorkload) * 100 : 0;
+      let calculatedStatus = 'available';
+      if (percentage > 100) calculatedStatus = 'overloaded';
+      else if (percentage >= 90) calculatedStatus = 'near-capacity';
+      else if (percentage >= 70) calculatedStatus = 'moderate';
+
+      return {
+        _id: s._id,
+        name: s.name,
+        email: s.email,
+        priority: s.priority,
+        specialization: s.specialization || [],
+        location: s.location,
+        currentWorkload: s.currentWorkload || 0,
+        maxWorkload: s.maxWorkload || 20,
+        workloadPercentage: Math.round(percentage),
+        availableHours: (s.maxWorkload || 20) - (s.currentWorkload || 0),
+        status: calculatedStatus
+      };
+    }).filter(s => {
+      if (status) {
+        return s.status === status;
+      }
+      return true;
+    });
+
+    const stats = {
+      total: workloadData.length,
+      overloaded: workloadData.filter(s => s.status === 'overloaded').length,
+      nearCapacity: workloadData.filter(s => s.status === 'near-capacity').length,
+      moderate: workloadData.filter(s => s.status === 'moderate').length,
+      available: workloadData.filter(s => s.status === 'available').length,
+      averageWorkload: workloadData.length > 0 
+        ? Math.round(workloadData.reduce((sum, s) => sum + s.currentWorkload, 0) / workloadData.length)
+        : 0
+    };
+
+    const { generateWorkloadPDF } = require('../utils/pdfGenerator');
+    const pdfBuffer = await generateWorkloadPDF(workloadData, stats);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=workload-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('❌ Workload export error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error exporting workload report',
+      error: error.message
+    });
+  }
+});
+
 // @route   GET /api/coordinator/workload/:staffId
 // @desc    Get detailed workload for specific staff
 router.get('/workload/:staffId', async (req, res) => {
@@ -500,67 +688,77 @@ router.get('/workload/:staffId', async (req, res) => {
   }
 });
 
-// ==================== COURSES (read — used for scheduling & publish views) ====================
-
-// @route   GET /api/coordinator/courses
-// @desc    List active courses (same filters as admin list)
-router.get('/courses', async (req, res) => {
+// @route   GET /api/coordinator/workload/export
+// @desc    Export workload report as PDF
+router.get('/workload/export', async (req, res) => {
   try {
-    const { year, semester, specialization } = req.query;
+    console.log('📊 Exporting workload report...');
+    
+    const { location, specialization } = req.query;
     const query = { isActive: true };
 
-    if (year) query.year = parseInt(year, 10);
-    if (semester) query.semester = parseInt(semester, 10);
+    if (location) query.location = location;
     if (specialization) query.specialization = specialization;
 
-    const courses = await Course.find(query)
-      .populate('lic', 'name email')
-      .populate('batches', 'batchCode studentCount')
-      .sort('courseCode')
+    const staff = await Staff.find(query)
+      .select('name email priority specialization location currentWorkload maxWorkload')
+      .sort({ currentWorkload: -1 })
       .lean();
 
-    res.json({
-      success: true,
-      data: courses
+    const workloadData = staff.map(s => {
+      const percentage = s.maxWorkload > 0 ? (s.currentWorkload / s.maxWorkload) * 100 : 0;
+      let status = 'available';
+      if (percentage > 100) status = 'overloaded';
+      else if (percentage >= 90) status = 'near-capacity';
+      else if (percentage >= 70) status = 'moderate';
+
+      return {
+        _id: s._id,
+        name: s.name,
+        email: s.email,
+        priority: s.priority,
+        specialization: s.specialization || [],
+        location: s.location,
+        currentWorkload: s.currentWorkload || 0,
+        maxWorkload: s.maxWorkload || 20,
+        workloadPercentage: Math.round(percentage),
+        availableHours: (s.maxWorkload || 20) - (s.currentWorkload || 0),
+        status
+      };
     });
+
+    const stats = {
+      total: workloadData.length,
+      overloaded: workloadData.filter(s => s.status === 'overloaded').length,
+      nearCapacity: workloadData.filter(s => s.status === 'near-capacity').length,
+      moderate: workloadData.filter(s => s.status === 'moderate').length,
+      available: workloadData.filter(s => s.status === 'available').length,
+      averageWorkload: workloadData.length > 0 
+        ? Math.round(workloadData.reduce((sum, s) => sum + s.currentWorkload, 0) / workloadData.length)
+        : 0
+    };
+
+    // Generate PDF
+    const { generateWorkloadPDF } = require('../utils/pdfGenerator');
+    const pdfBuffer = await generateWorkloadPDF(workloadData, stats);
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=workload-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
   } catch (error) {
-    console.error('❌ Coordinator courses list error:', error);
+    console.error('❌ Workload export error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching courses',
-      error: error.message
-    });
-  }
-});
-
-// @route   GET /api/coordinator/courses/:id
-// @desc    Get one course with relations
-router.get('/courses/:id', async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id)
-      .populate('lic', 'name email')
-      .populate('instructors.staff', 'name email priority')
-      .populate('batches', 'batchCode studentCount');
-
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        message: 'Course not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: course
-    });
-  } catch (error) {
-    console.error('❌ Coordinator course get error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching course',
+      message: 'Error exporting workload report',
       error: error.message
     });
   }
 });
 
 module.exports = router;
+
+
+

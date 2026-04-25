@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD
+=======
+import { Link } from 'react-router-dom';
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 import { 
   FiMenu, FiBell, FiSearch, FiSun, FiMoon,
   FiChevronDown, FiUser, FiSettings, FiLogOut
@@ -7,10 +11,23 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import './Header.css';
 
+<<<<<<< HEAD
+=======
+const initialNotifications = [
+  { id: 1, text: 'New course assignment pending', time: '5 min ago', unread: true },
+  { id: 2, text: 'Timetable published for Y2.S1.WD.IT', time: '1 hour ago', unread: true },
+  { id: 3, text: 'Workload updated for Dr. Smith', time: '3 hours ago', unread: false }
+];
+
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 const Header = ({ onMenuClick, title }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+<<<<<<< HEAD
+=======
+  const [notifications, setNotifications] = useState(initialNotifications);
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
   const { user, logout } = useAuth();
 
   const toggleDarkMode = () => {
@@ -18,6 +35,7 @@ const Header = ({ onMenuClick, title }) => {
     document.documentElement.setAttribute('data-theme', !darkMode ? 'dark' : 'light');
   };
 
+<<<<<<< HEAD
   // Mock notifications
   const notifications = [
     { id: 1, text: 'New course assignment pending', time: '5 min ago', unread: true },
@@ -26,6 +44,17 @@ const Header = ({ onMenuClick, title }) => {
   ];
 
   const unreadCount = notifications.filter(n => n.unread).length;
+=======
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(notification => ({
+      ...notification,
+      unread: false
+    })));
+  };
+
+  const unreadCount = notifications.filter(n => n.unread).length;
+  const baseRoute = user?.role ? `/${user.role}` : '';
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 
   return (
     <header className="header">
@@ -66,7 +95,11 @@ const Header = ({ onMenuClick, title }) => {
             <div className="dropdown-menu notifications-menu">
               <div className="dropdown-header">
                 <h3>Notifications</h3>
+<<<<<<< HEAD
                 <button className="mark-read-btn">Mark all as read</button>
+=======
+                <button className="mark-read-btn" onClick={markAllAsRead}>Mark all as read</button>
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
               </div>
               <div className="dropdown-body">
                 {notifications.map(notification => (
@@ -80,7 +113,11 @@ const Header = ({ onMenuClick, title }) => {
                 ))}
               </div>
               <div className="dropdown-footer">
+<<<<<<< HEAD
                 <a href="/notifications">View all notifications</a>
+=======
+                <Link to={`${baseRoute}/notifications`}>View all notifications</Link>
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
               </div>
             </div>
           )}
@@ -111,6 +148,7 @@ const Header = ({ onMenuClick, title }) => {
                 </div>
               </div>
               <div className="dropdown-divider" />
+<<<<<<< HEAD
               <a href="/profile" className="dropdown-item">
                 <FiUser size={18} />
                 <span>My Profile</span>
@@ -119,6 +157,24 @@ const Header = ({ onMenuClick, title }) => {
                 <FiSettings size={18} />
                 <span>Settings</span>
               </a>
+=======
+              <Link
+                to={`${baseRoute}/profile`}
+                className="dropdown-item"
+                onClick={() => setShowProfile(false)}
+              >
+                <FiUser size={18} />
+                <span>My Profile</span>
+              </Link>
+              <Link
+                to={`${baseRoute}/settings`}
+                className="dropdown-item"
+                onClick={() => setShowProfile(false)}
+              >
+                <FiSettings size={18} />
+                <span>Settings</span>
+              </Link>
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
               <div className="dropdown-divider" />
               <button className="dropdown-item danger" onClick={logout}>
                 <FiLogOut size={18} />
@@ -132,4 +188,8 @@ const Header = ({ onMenuClick, title }) => {
   );
 };
 
+<<<<<<< HEAD
 export default Header;
+=======
+export default Header;
+>>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
