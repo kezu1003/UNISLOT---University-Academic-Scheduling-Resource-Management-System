@@ -49,12 +49,6 @@ export const HALL_TYPES = [
   { value: 'Tutorial Room', label: 'Tutorial Room' }
 ];
 
-export const HALL_STATUSES = [
-  { value: 'Active', label: 'Active' },
-  { value: 'Maintenance', label: 'Under Maintenance' },
-  { value: 'Out of Service', label: 'Out of Service' }
-];
-
 export const YEARS = [
   { value: 1, label: 'Year 1' },
   { value: 2, label: 'Year 2' },

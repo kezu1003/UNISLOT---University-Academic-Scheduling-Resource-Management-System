@@ -362,8 +362,7 @@ router.post('/halls', [
   body('hallName').notEmpty().withMessage('Hall name is required'),
   body('capacity').isInt({ min: 1 }).withMessage('Capacity must be positive'),
   body('location').notEmpty().withMessage('Location is required'),
-  body('type').isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type'),
-  body('status').optional().isIn(['Active', 'Maintenance', 'Out of Service']).withMessage('Invalid status')
+  body('type').isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -400,14 +399,12 @@ router.post('/halls', [
 // @access  Admin only
 router.get('/halls', async (req, res) => {
   try {
-    const { location, type, minCapacity, status } = req.query;
+    const { location, type, minCapacity } = req.query;
     const query = { isActive: true };
 
     if (location) query.location = location;
     if (type) query.type = type;
     if (minCapacity) query.capacity = { $gte: parseInt(minCapacity) };
-    if (status) query.status = status;
-    else query.status = { $ne: 'Out of Service' }; // By default, don't show out of service halls
 
     const halls = await Hall.find(query).sort('hallCode');
 
@@ -424,107 +421,6 @@ router.get('/halls', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-=======
-// @route   PUT /api/admin/halls/:id
-// @desc    Update hall
-// @access  Admin only
-router.put('/halls/:id', [
-  body('hallCode').optional().notEmpty().withMessage('Hall code is required'),
-  body('hallName').optional().notEmpty().withMessage('Hall name is required'),
-  body('capacity').optional().isInt({ min: 1 }).withMessage('Capacity must be positive'),
-  body('location').optional().notEmpty().withMessage('Location is required'),
-  body('type').optional().isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type'),
-  body('status').optional().isIn(['Active', 'Maintenance', 'Out of Service']).withMessage('Invalid status')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
-    const hall = await Hall.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!hall) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hall not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: hall
-    });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Hall with this code already exists'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Error updating hall',
-      error: error.message
-    });
-  }
-});
-
-// @route   DELETE /api/admin/halls/:id
-// @desc    Remove hall for maintenance
-// @access  Admin only
-router.delete('/halls/:id', async (req, res) => {
-  try {
-    const maintenanceIssue = req.body?.maintenanceIssue?.trim();
-
-    if (!maintenanceIssue) {
-      return res.status(400).json({
-        success: false,
-        message: 'Maintenance issue is required'
-      });
-    }
-
-    const hall = await Hall.findByIdAndUpdate(
-      req.params.id,
-      {
-        status: 'Maintenance',
-        isActive: false,
-        maintenanceIssue,
-        maintenanceMarkedAt: new Date()
-      },
-      { new: true }
-    );
-
-    if (!hall) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hall not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Hall removed for maintenance successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error removing hall for maintenance',
-      error: error.message
-    });
-  }
-});
-
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 // ==================== COURSE MANAGEMENT ====================
 
 function normalizeCoursePayload(body) {

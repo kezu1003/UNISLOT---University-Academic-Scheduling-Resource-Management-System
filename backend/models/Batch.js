@@ -5,12 +5,7 @@ const batchSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-<<<<<<< HEAD
     match: [/^Y\d\.S\d\.(WD|WE)\.(IT|SE|DS|CYBER|CS|CSE|ISE|CSNE|IM)\.\d{2}\.\d{2}$/, 'Invalid batch code format']
-=======
-    uppercase: true,
-    trim: true
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
   },
   year: {
     type: Number,
@@ -36,7 +31,6 @@ const batchSchema = new mongoose.Schema({
   },
   mainGroup: {
     type: String,
-<<<<<<< HEAD
     required: true,
     match: /^\d{2}$/
   },
@@ -44,13 +38,6 @@ const batchSchema = new mongoose.Schema({
     type: String,
     required: true,
     match: /^\d{2}$/
-=======
-    required: true
-  },
-  subGroup: {
-    type: String,
-    required: true
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
   },
   studentCount: {
     type: Number,
@@ -62,7 +49,6 @@ const batchSchema = new mongoose.Schema({
     default: true
   }
 }, {
-<<<<<<< HEAD
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -74,9 +60,3 @@ batchSchema.virtual('fullName').get(function() {
 });
 
 module.exports = mongoose.model('Batch', batchSchema);
-=======
-  timestamps: true
-});
-
-module.exports = mongoose.model('Batch', batchSchema);
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05

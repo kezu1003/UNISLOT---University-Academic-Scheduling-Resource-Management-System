@@ -11,22 +11,13 @@ const Layout = () => {
   // Get page title from route
   const getPageTitle = () => {
     const path = location.pathname;
-<<<<<<< HEAD
-=======
-
-    if (path.endsWith('/profile')) return 'My Profile';
-    if (path.endsWith('/settings')) return 'Settings';
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
     
     // Admin routes
     if (path.includes('/admin/staff')) return 'Staff Management';
     if (path.includes('/admin/batches')) return 'Batch Management';
     if (path.includes('/admin/courses')) return 'Course Management';
     if (path.includes('/admin/halls')) return 'Hall Management';
-<<<<<<< HEAD
     if (path.includes('/admin/settings')) return 'Settings';
-=======
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
     if (path === '/admin') return 'Admin Dashboard';
     
     // LIC routes
@@ -72,8 +63,4 @@ const Layout = () => {
   );
 };
 
-<<<<<<< HEAD
 export default Layout;
-=======
-export default Layout;
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05

@@ -97,32 +97,6 @@ const WorkloadOverview = () => {
     status: w.status
   }));
 
-  // Export workload report
-  const handleExportReport = async () => {
-    try {
-      const response = await coordinatorAPI.exportWorkloadReport({
-        location: filters.location,
-        status: filters.status
-      });
-
-      // Create blob and download
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `workload-report-${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success('Workload report exported successfully!');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export workload report');
-    }
-  };
-
   // Get bar color based on status
   const getBarColor = (status) => {
     switch (status) {
@@ -154,7 +128,7 @@ const WorkloadOverview = () => {
           <p>Monitor and manage staff workload distribution</p>
         </div>
         <div className="header-actions">
-          <Button variant="secondary" icon={<FiDownload />} onClick={handleExportReport}>
+          <Button variant="secondary" icon={<FiDownload />}>
             Export Report
           </Button>
         </div>

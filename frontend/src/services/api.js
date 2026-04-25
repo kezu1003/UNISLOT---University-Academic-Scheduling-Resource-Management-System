@@ -39,9 +39,7 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
-  getMe: () => api.get('/auth/me'),
-  updateProfile: (data) => api.put('/auth/profile', data),
-  changePassword: (data) => api.put('/auth/password', data)
+  getMe: () => api.get('/auth/me')
 };
 
 // ==================== ADMIN ====================
@@ -69,7 +67,7 @@ export const adminAPI = {
   getHalls: (params) => api.get('/admin/halls', { params }),
   createHall: (data) => api.post('/admin/halls', data),
   updateHall: (id, data) => api.put(`/admin/halls/${id}`, data),
-  deleteHall: (id, data) => api.delete(`/admin/halls/${id}`, { data }),
+  deleteHall: (id) => api.delete(`/admin/halls/${id}`),
   
   // Courses
   getCourses: (params) => api.get('/admin/courses', { params }),
@@ -101,20 +99,10 @@ export const coordinatorAPI = {
   // Workload
   getAllWorkload: (params) => api.get('/coordinator/workload', { params }),
   getStaffWorkload: (staffId) => api.get(`/coordinator/workload/${staffId}`),
-<<<<<<< HEAD
 
   // Courses (read-only; create/update/delete via admin API)
   getCourses: (params) => api.get('/coordinator/courses', { params }),
   getCourse: (id) => api.get(`/coordinator/courses/${id}`)
-=======
-  exportWorkloadReport: (params) => api.get('/coordinator/workload/export', {
-    params,
-    responseType: 'blob', // For file download
-    headers: {
-      Accept: 'application/pdf'
-    }
-  })
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 };
 
 export default api;

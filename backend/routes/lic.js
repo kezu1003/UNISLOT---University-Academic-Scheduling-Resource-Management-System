@@ -15,28 +15,17 @@ router.use(authorize('lic'));
 // @access  LIC only
 router.get('/courses', async (req, res) => {
   try {
-<<<<<<< HEAD
     const filter = await licCourseFilter(req.user);
     const courses = await Course.find(filter)
-=======
-    const courses = await Course.find({ 
-      lic: req.user._id,
-      isActive: true 
-    })
-    .select('courseCode courseName credits lectureHours tutorialHours labHours year semester specialization instructors batches lic')
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
     .populate('batches', 'batchCode studentCount')
     .populate('instructors.staff', 'name email priority currentWorkload maxWorkload')
     .sort('courseCode');
-
-    console.log(`📚 LIC Courses - Found ${courses.length} courses for LIC ${req.user._id}`);
 
     res.json({
       success: true,
       data: courses
     });
   } catch (error) {
-    console.error('❌ LIC courses fetch error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching courses',

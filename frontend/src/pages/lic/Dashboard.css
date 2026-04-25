@@ -38,7 +38,6 @@
   margin-bottom: var(--spacing-6);
 }
 
-<<<<<<< HEAD
 .lic-dashboard .card-header-content {
   display: flex;
   align-items: center;
@@ -64,8 +63,6 @@
   color: var(--primary-700);
 }
 
-=======
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 /* Course List */
 .course-list {
   display: flex;
@@ -117,14 +114,11 @@
   color: var(--text-secondary);
 }
 
-<<<<<<< HEAD
 .course-meta-line {
   font-size: var(--font-size-xs);
   color: var(--text-tertiary);
 }
 
-=======
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 .course-meta {
   display: flex;
   align-items: center;
@@ -159,7 +153,6 @@
   color: var(--text-secondary);
 }
 
-<<<<<<< HEAD
 .empty-state--muted {
   color: var(--text-tertiary);
 }
@@ -180,8 +173,6 @@
   line-height: 1.5;
 }
 
-=======
->>>>>>> fec701362d3b1719b076d7b4abef8c2eaf0fca05
 /* Alert Card */
 .alert-card {
   background-color: var(--warning-light);
