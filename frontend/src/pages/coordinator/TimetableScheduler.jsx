@@ -7,7 +7,6 @@ import {
 } from 'react-icons/fi';
 import { coordinatorAPI, adminAPI } from '../../services/api';
 import { toast } from 'react-toastify';
-import HallAvailabilityPanel from '../../components/common/HallAvailabilityPanel';
 import './TimetableScheduler.css';
 
 // Constants
@@ -132,8 +131,7 @@ const FormSelect = ({
   required = false,
   placeholder = 'Select...',
   disabled = false,
-  renderOption,
-  hint
+  renderOption
 }) => {
   const showError = touched && error;
   const showSuccess = touched && !error && value;
@@ -167,11 +165,6 @@ const FormSelect = ({
       {showError && (
         <span className="error-message">
           <FiAlertCircle size={12} /> {error}
-        </span>
-      )}
-      {hint && !showError && (
-        <span className="hint-message">
-          <FiInfo size={12} /> {hint}
         </span>
       )}
     </div>
@@ -249,21 +242,6 @@ const ConflictAlert = ({ conflicts, onClose }) => {
   );
 };
 
-const getHallCapacityError = (data, batches, halls) => {
-  if (!data.batch || !data.hall) return '';
-
-  const selectedBatch = batches.find(batch => batch._id === data.batch);
-  const selectedHall = halls.find(hall => hall._id === data.hall);
-
-  if (!selectedBatch || !selectedHall) return '';
-
-  if (selectedBatch.studentCount > selectedHall.capacity) {
-    return `${selectedHall.hallCode} only has ${selectedHall.capacity} seats for ${selectedBatch.studentCount} students in ${selectedBatch.batchCode}`;
-  }
-
-  return '';
-};
-
 // Main Component
 const TimetableScheduler = () => {
   // Data State
@@ -293,9 +271,6 @@ const TimetableScheduler = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const selectedBatchData = batches.find(batch => batch._id === formData.batch);
-  const selectedHallData = halls.find(hall => hall._id === formData.hall);
-  const hallCapacityError = getHallCapacityError(formData, batches, halls);
 
   // Fetch Data
   useEffect(() => {
@@ -306,7 +281,7 @@ const TimetableScheduler = () => {
   useEffect(() => {
     const isValid = validateFormSilent();
     setFormValid(isValid);
-  }, [formData, batches, halls]);
+  }, [formData]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -362,12 +337,8 @@ const TimetableScheduler = () => {
       if (error) return error;
     }
 
-    if (name === 'hall') {
-      return getHallCapacityError(allData, batches, halls);
-    }
-
     return '';
-  }, [formData, batches, halls]);
+  }, [formData]);
 
   const validateFormSilent = useCallback(() => {
     let isValid = true;
@@ -515,12 +486,6 @@ const TimetableScheduler = () => {
     e?.stopPropagation();
     setDeleteTarget(entry);
     setShowDeleteModal(true);
-  };
-
-  const handleAvailabilitySelect = (hall) => {
-    setFormData((prev) => ({ ...prev, hall: hall._id }));
-    setTouched((prev) => ({ ...prev, hall: true }));
-    setErrors((prev) => ({ ...prev, hall: '' }));
   };
 
   const confirmDelete = async () => {
@@ -853,7 +818,7 @@ const TimetableScheduler = () => {
                   required
                   placeholder="Select Batch"
                   options={batches}
-                  renderOption={(b) => `${b.batchCode} (${b.studentCount} students)`}
+                  renderOption={(b) => b.batchCode}
                 />
               </div>
 
@@ -884,15 +849,7 @@ const TimetableScheduler = () => {
                   required
                   placeholder="Select Hall"
                   options={halls}
-                  renderOption={(h) => {
-                    const isTooSmall = selectedBatchData && h.capacity < selectedBatchData.studentCount;
-                    return `${h.hallCode} - ${h.hallName} (${h.capacity} seats${isTooSmall ? ' - too small' : ''})`;
-                  }}
-                  hint={
-                    selectedBatchData
-                      ? `Batch size: ${selectedBatchData.studentCount} students${selectedHallData ? ` | Selected hall seats: ${selectedHallData.capacity}` : ''}`
-                      : 'Select a batch to compare hall capacity'
-                  }
+                  renderOption={(h) => `${h.hallCode} - ${h.hallName} (${h.capacity})`}
                 />
               </div>
 
@@ -945,34 +902,6 @@ const TimetableScheduler = () => {
                 </div>
               )}
 
-              <HallAvailabilityPanel
-                compact
-                title="Hall / Lab Availability"
-                description="Check live hall availability for the selected schedule slot and choose a free space directly."
-                fetchAvailability={(params) => coordinatorAPI.getHallAvailability({
-                  ...params,
-                  excludeEntryId: editMode ? editingId : undefined
-                })}
-                initialFilters={{
-                  day: formData.day,
-                  startTime: formData.startTime,
-                  endTime: formData.endTime
-                }}
-                batchId={formData.batch || undefined}
-                batchSize={selectedBatchData?.studentCount}
-                selectedHallId={formData.hall}
-                onSelectHall={handleAvailabilitySelect}
-              />
-
-              {selectedBatchData && selectedHallData && !hallCapacityError && (
-                <div className="duration-display">
-                  <FiUsers />
-                  <span>
-                    Capacity check passed: {selectedHallData.hallCode} has {selectedHallData.capacity} seats for {selectedBatchData.studentCount} students
-                  </span>
-                </div>
-              )}
-
               {/* Type & Mode */}
               <div className="form-row">
                 <div className="form-group">
@@ -1020,7 +949,7 @@ const TimetableScheduler = () => {
                   </p>
                   <p>
                     Instructor: <strong>{staff.find(s => s._id === formData.instructor)?.name}</strong>
-                    {' | Hall: '}<strong>{selectedHallData?.hallCode}</strong>
+                    {' | Hall: '}<strong>{halls.find(h => h._id === formData.hall)?.hallCode}</strong>
                   </p>
                 </div>
               )}

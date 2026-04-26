@@ -1,0 +1,53 @@
+.course-assignment-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.course-assignment-page__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-5);
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.course-assignment-page__icon-wrap {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--primary-100);
+  color: var(--primary-700);
+}
+
+.course-assignment-page__icon {
+  width: 24px;
+  height: 24px;
+}
+
+.course-assignment-page__title {
+  margin: 0 0 var(--spacing-1);
+  font-size: var(--font-size-xl);
+  color: var(--text-primary);
+}
+
+.course-assignment-page__subtitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+@media (max-width: 600px) {
+  .course-assignment-page__header {
+    flex-direction: column;
+  }
+}

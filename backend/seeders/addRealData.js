@@ -79,14 +79,19 @@ const seedDatabase = async () => {
     const createdStaff = await Staff.insertMany(staffMembers);
     console.log(`✅ Created ${createdStaff.length} staff members`);
 
+    // LIC login user ↔ Staff record (Course.lic references Staff, not User)
+    const licStaff = createdStaff.find((s) => s.staffId === 'ST001') || createdStaff[0];
+    await User.findByIdAndUpdate(licUser._id, { staff: licStaff._id });
+    console.log('✅ Linked LIC user to staff record');
+
     const createdBatches = await Batch.insertMany(batches);
     console.log(`✅ Created ${createdBatches.length} batches`);
 
     const createdHalls = await Hall.insertMany(halls);
     console.log(`✅ Created ${createdHalls.length} halls`);
 
-    // Assign LIC to courses
-    const coursesWithLIC = courses.map(course => ({ ...course, lic: licUser._id }));
+    // Assign LIC (Staff id — matches Admin Course Management)
+    const coursesWithLIC = courses.map((course) => ({ ...course, lic: licStaff._id }));
     await Course.insertMany(coursesWithLIC);
     console.log(`✅ Created ${courses.length} courses with LIC assigned`);
 
