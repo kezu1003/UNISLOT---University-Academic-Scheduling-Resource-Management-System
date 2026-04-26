@@ -31,6 +31,27 @@ router.get('/test', (req, res) => {
 router.use(protect);
 router.use(authorize('coordinator', 'admin'));
 
+// ==================== HALL AVAILABILITY ROUTES ====================
+
+// @route   GET /api/coordinator/halls/availability
+// @desc    Get hall availability for a selected slot
+router.get('/halls/availability', async (req, res) => {
+  try {
+    const availability = await getHallAvailability(req.query);
+
+    res.json({
+      success: true,
+      data: availability
+    });
+  } catch (error) {
+    console.error('Hall availability error:', error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error fetching hall availability'
+    });
+  }
+});
+
 // ==================== TIMETABLE ROUTES ====================
 
 const validateHallCapacityForBatch = async (batchId, hallId) => {
@@ -759,6 +780,3 @@ router.get('/workload/export', async (req, res) => {
 });
 
 module.exports = router;
-
-
-
