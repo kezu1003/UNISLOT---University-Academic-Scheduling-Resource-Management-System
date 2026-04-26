@@ -95,7 +95,7 @@ export const coordinatorAPI = {
   createTimetable: (data) => api.post('/coordinator/timetable', data),
   updateTimetable: (id, data) => api.put(`/coordinator/timetable/${id}`, data),
   deleteTimetable: (id) => api.delete(`/coordinator/timetable/${id}`),
-  getHallAvailability: (params) => api.get('/coordinator/hall-availability', { params }),
+  getHallAvailability: (params) => api.get('/coordinator/halls/availability', { params }),
   publishTimetable: (data) => api.post('/coordinator/timetable/publish', data),
   getConflicts: () => api.get('/coordinator/timetable/conflicts'),
   
