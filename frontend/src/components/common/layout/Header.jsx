@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { 
   FiMenu, FiBell, FiSearch, FiSun, FiMoon,
   FiChevronDown, FiUser, FiSettings, FiLogOut
@@ -8,17 +7,10 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import './Header.css';
 
-const initialNotifications = [
-  { id: 1, text: 'New course assignment pending', time: '5 min ago', unread: true },
-  { id: 2, text: 'Timetable published for Y2.S1.WD.IT', time: '1 hour ago', unread: true },
-  { id: 3, text: 'Workload updated for Dr. Smith', time: '3 hours ago', unread: false }
-];
-
 const Header = ({ onMenuClick, title }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
   const { user, logout } = useAuth();
 
   const toggleDarkMode = () => {
@@ -26,15 +18,14 @@ const Header = ({ onMenuClick, title }) => {
     document.documentElement.setAttribute('data-theme', !darkMode ? 'dark' : 'light');
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notification => ({
-      ...notification,
-      unread: false
-    })));
-  };
+  // Mock notifications
+  const notifications = [
+    { id: 1, text: 'New course assignment pending', time: '5 min ago', unread: true },
+    { id: 2, text: 'Timetable published for Y2.S1.WD.IT', time: '1 hour ago', unread: true },
+    { id: 3, text: 'Workload updated for Dr. Smith', time: '3 hours ago', unread: false }
+  ];
 
   const unreadCount = notifications.filter(n => n.unread).length;
-  const baseRoute = user?.role ? `/${user.role}` : '';
 
   return (
     <header className="header">
@@ -75,7 +66,7 @@ const Header = ({ onMenuClick, title }) => {
             <div className="dropdown-menu notifications-menu">
               <div className="dropdown-header">
                 <h3>Notifications</h3>
-                <button className="mark-read-btn" onClick={markAllAsRead}>Mark all as read</button>
+                <button className="mark-read-btn">Mark all as read</button>
               </div>
               <div className="dropdown-body">
                 {notifications.map(notification => (
@@ -89,7 +80,7 @@ const Header = ({ onMenuClick, title }) => {
                 ))}
               </div>
               <div className="dropdown-footer">
-                <Link to={`${baseRoute}/notifications`}>View all notifications</Link>
+                <a href="/notifications">View all notifications</a>
               </div>
             </div>
           )}
@@ -120,22 +111,14 @@ const Header = ({ onMenuClick, title }) => {
                 </div>
               </div>
               <div className="dropdown-divider" />
-              <Link
-                to={`${baseRoute}/profile`}
-                className="dropdown-item"
-                onClick={() => setShowProfile(false)}
-              >
+              <a href="/profile" className="dropdown-item">
                 <FiUser size={18} />
                 <span>My Profile</span>
-              </Link>
-              <Link
-                to={`${baseRoute}/settings`}
-                className="dropdown-item"
-                onClick={() => setShowProfile(false)}
-              >
+              </a>
+              <a href="/settings" className="dropdown-item">
                 <FiSettings size={18} />
                 <span>Settings</span>
-              </Link>
+              </a>
               <div className="dropdown-divider" />
               <button className="dropdown-item danger" onClick={logout}>
                 <FiLogOut size={18} />

@@ -246,16 +246,6 @@
   color: var(--text-primary);
 }
 
-.action-btn.edit:hover {
-  background-color: var(--primary-100);
-  color: var(--primary-600);
-}
-
-.action-btn.warning:hover {
-  background-color: var(--warning-light);
-  color: var(--warning-dark);
-}
-
 .action-btn.danger:hover {
   background-color: var(--error-light);
   color: var(--error-main);
@@ -791,17 +781,6 @@
 .delete-warning p {
   margin: var(--spacing-2) 0;
   color: var(--text-primary);
-}
-
-.maintenance-issue-group {
-  margin-top: var(--spacing-4);
-  text-align: left;
-}
-
-.maintenance-textarea {
-  min-height: 110px;
-  resize: vertical;
-  padding: var(--spacing-3);
 }
 
 .delete-target-info {

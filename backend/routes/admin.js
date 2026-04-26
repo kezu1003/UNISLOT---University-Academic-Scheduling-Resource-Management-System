@@ -7,6 +7,7 @@ const Staff = require('../models/Staff');
 const Course = require('../models/Course');
 const Batch = require('../models/Batch');
 const Hall = require('../models/Hall');
+const Timetable = require('../models/Timetable');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -361,8 +362,7 @@ router.post('/halls', [
   body('hallName').notEmpty().withMessage('Hall name is required'),
   body('capacity').isInt({ min: 1 }).withMessage('Capacity must be positive'),
   body('location').notEmpty().withMessage('Location is required'),
-  body('type').isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type'),
-  body('status').optional().isIn(['Active', 'Maintenance', 'Out of Service']).withMessage('Invalid status')
+  body('type').isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -399,14 +399,12 @@ router.post('/halls', [
 // @access  Admin only
 router.get('/halls', async (req, res) => {
   try {
-    const { location, type, minCapacity, status } = req.query;
+    const { location, type, minCapacity } = req.query;
     const query = { isActive: true };
 
     if (location) query.location = location;
     if (type) query.type = type;
     if (minCapacity) query.capacity = { $gte: parseInt(minCapacity) };
-    if (status) query.status = status;
-    else query.status = { $ne: 'Out of Service' }; // By default, don't show out of service halls
 
     const halls = await Hall.find(query).sort('hallCode');
 
@@ -423,105 +421,21 @@ router.get('/halls', async (req, res) => {
   }
 });
 
-// @route   PUT /api/admin/halls/:id
-// @desc    Update hall
-// @access  Admin only
-router.put('/halls/:id', [
-  body('hallCode').optional().notEmpty().withMessage('Hall code is required'),
-  body('hallName').optional().notEmpty().withMessage('Hall name is required'),
-  body('capacity').optional().isInt({ min: 1 }).withMessage('Capacity must be positive'),
-  body('location').optional().notEmpty().withMessage('Location is required'),
-  body('type').optional().isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type'),
-  body('status').optional().isIn(['Active', 'Maintenance', 'Out of Service']).withMessage('Invalid status')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
-    const hall = await Hall.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!hall) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hall not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: hall
-    });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Hall with this code already exists'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Error updating hall',
-      error: error.message
-    });
-  }
-});
-
-// @route   DELETE /api/admin/halls/:id
-// @desc    Remove hall for maintenance
-// @access  Admin only
-router.delete('/halls/:id', async (req, res) => {
-  try {
-    const maintenanceIssue = req.body?.maintenanceIssue?.trim();
-
-    if (!maintenanceIssue) {
-      return res.status(400).json({
-        success: false,
-        message: 'Maintenance issue is required'
-      });
-    }
-
-    const hall = await Hall.findByIdAndUpdate(
-      req.params.id,
-      {
-        status: 'Maintenance',
-        isActive: false,
-        maintenanceIssue,
-        maintenanceMarkedAt: new Date()
-      },
-      { new: true }
-    );
-
-    if (!hall) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hall not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Hall removed for maintenance successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error removing hall for maintenance',
-      error: error.message
-    });
-  }
-});
-
 // ==================== COURSE MANAGEMENT ====================
+
+function normalizeCoursePayload(body) {
+  const payload = { ...body };
+  if (payload.lic === '' || payload.lic === undefined) {
+    payload.lic = null;
+  }
+  if (payload.courseCode) {
+    payload.courseCode = String(payload.courseCode).toUpperCase().trim();
+  }
+  if (Array.isArray(payload.batches) && payload.batches.length === 0) {
+    payload.batches = [];
+  }
+  return payload;
+}
 
 // @route   POST /api/admin/courses
 // @desc    Create course
@@ -540,11 +454,16 @@ router.post('/courses', [
       });
     }
 
-    const course = await Course.create(req.body);
+    const course = await Course.create(normalizeCoursePayload(req.body));
+
+    const populated = await Course.findById(course._id)
+      .populate('lic', 'name email')
+      .populate('instructors.staff', 'name email priority')
+      .populate('batches', 'batchCode studentCount');
 
     res.status(201).json({
       success: true,
-      data: course
+      data: populated
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -587,6 +506,126 @@ router.get('/courses', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching courses',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/admin/courses/:id
+// @desc    Get single course
+// @access  Admin / Coordinator
+router.get('/courses/:id', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+      .populate('lic', 'name email')
+      .populate('instructors.staff', 'name email priority')
+      .populate('batches', 'batchCode studentCount');
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: course
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching course',
+      error: error.message
+    });
+  }
+});
+
+// @route   PUT /api/admin/courses/:id
+// @desc    Update course
+// @access  Admin / Coordinator
+router.put('/courses/:id', [
+  body('courseName').optional().notEmpty().withMessage('Course name cannot be empty'),
+  body('credits').optional().isInt({ min: 1, max: 6 }).withMessage('Credits must be between 1-6'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const existing = await Course.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    const update = normalizeCoursePayload(req.body);
+    delete update.courseCode;
+
+    Object.assign(existing, update);
+    await existing.save();
+
+    const course = await Course.findById(existing._id)
+      .populate('lic', 'name email')
+      .populate('instructors.staff', 'name email priority')
+      .populate('batches', 'batchCode studentCount');
+
+    res.json({
+      success: true,
+      data: course
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Course with this code already exists'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Error updating course',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/admin/courses/:id
+// @desc    Delete course (blocked if timetable entries exist)
+// @access  Admin / Coordinator
+router.delete('/courses/:id', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    const scheduleCount = await Timetable.countDocuments({ course: course._id });
+    if (scheduleCount > 0) {
+      await Timetable.deleteMany({ course: course._id });
+    }
+
+    await Course.deleteOne({ _id: course._id });
+
+    res.json({
+      success: true,
+      message:
+        scheduleCount > 0
+          ? `Course deleted (${scheduleCount} timetable slot(s) removed).`
+          : 'Course deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting course',
       error: error.message
     });
   }

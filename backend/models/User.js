@@ -24,6 +24,12 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'lic', 'coordinator'],
     required: true
   },
+  /** Links login user to Staff (LIC/coordinator) when Course.lic / timetables use Staff ids */
+  staff: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff',
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true

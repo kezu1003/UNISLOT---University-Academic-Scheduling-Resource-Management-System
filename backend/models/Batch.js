@@ -5,8 +5,7 @@ const batchSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    uppercase: true,
-    trim: true
+    match: [/^Y\d\.S\d\.(WD|WE)\.(IT|SE|DS|CYBER|CS|CSE|ISE|CSNE|IM)\.\d{2}\.\d{2}$/, 'Invalid batch code format']
   },
   year: {
     type: Number,
@@ -32,11 +31,13 @@ const batchSchema = new mongoose.Schema({
   },
   mainGroup: {
     type: String,
-    required: true
+    required: true,
+    match: /^\d{2}$/
   },
   subGroup: {
     type: String,
-    required: true
+    required: true,
+    match: /^\d{2}$/
   },
   studentCount: {
     type: Number,
@@ -48,7 +49,14 @@ const batchSchema = new mongoose.Schema({
     default: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual for full batch name
+batchSchema.virtual('fullName').get(function() {
+  return `Y${this.year}.S${this.semester}.${this.type}.${this.specialization}.${this.mainGroup}.${this.subGroup}`;
 });
 
 module.exports = mongoose.model('Batch', batchSchema);

@@ -38,6 +38,31 @@
   margin-bottom: var(--spacing-6);
 }
 
+.lic-dashboard .card-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.lic-dashboard .view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  font-size: var(--font-size-sm);
+  color: var(--primary-600);
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.lic-dashboard .view-all:hover {
+  text-decoration: underline;
+  color: var(--primary-700);
+}
+
 /* Course List */
 .course-list {
   display: flex;
@@ -89,6 +114,11 @@
   color: var(--text-secondary);
 }
 
+.course-meta-line {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
 .course-meta {
   display: flex;
   align-items: center;
@@ -121,6 +151,26 @@
 .empty-state p {
   margin-top: var(--spacing-3);
   color: var(--text-secondary);
+}
+
+.empty-state--muted {
+  color: var(--text-tertiary);
+}
+
+.empty-state--muted svg {
+  color: var(--neutral-400);
+}
+
+.empty-state--muted p {
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 28rem;
+}
+
+.empty-hint {
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-2) !important;
+  line-height: 1.5;
 }
 
 /* Alert Card */

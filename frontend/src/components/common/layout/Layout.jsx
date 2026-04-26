@@ -11,15 +11,13 @@ const Layout = () => {
   // Get page title from route
   const getPageTitle = () => {
     const path = location.pathname;
-
-    if (path.endsWith('/profile')) return 'My Profile';
-    if (path.endsWith('/settings')) return 'Settings';
     
     // Admin routes
     if (path.includes('/admin/staff')) return 'Staff Management';
     if (path.includes('/admin/batches')) return 'Batch Management';
     if (path.includes('/admin/courses')) return 'Course Management';
     if (path.includes('/admin/halls')) return 'Hall Management';
+    if (path.includes('/admin/settings')) return 'Settings';
     if (path === '/admin') return 'Admin Dashboard';
     
     // LIC routes

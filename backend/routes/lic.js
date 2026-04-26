@@ -4,34 +4,28 @@ const { body, validationResult } = require('express-validator');
 const { protect, authorize } = require('../middleware/auth');
 const Course = require('../models/Course');
 const Staff = require('../models/Staff');
-const { getHallAvailability } = require('../utils/hallAvailability');
+const { licCourseFilter, userOwnsLicCourse } = require('../utils/licStaff');
 
 // All routes are protected and only for LIC
 router.use(protect);
 router.use(authorize('lic'));
 
 // @route   GET /api/lic/courses
-// @desc    Get courses assigned to LIC
+// @desc    Get courses assigned to LIC (Course.lic = Staff; matches User.staff or legacy User id)
 // @access  LIC only
 router.get('/courses', async (req, res) => {
   try {
-    const courses = await Course.find({ 
-      lic: req.user._id,
-      isActive: true 
-    })
-    .select('courseCode courseName credits lectureHours tutorialHours labHours year semester specialization instructors batches lic')
+    const filter = await licCourseFilter(req.user);
+    const courses = await Course.find(filter)
     .populate('batches', 'batchCode studentCount')
     .populate('instructors.staff', 'name email priority currentWorkload maxWorkload')
     .sort('courseCode');
-
-    console.log(`📚 LIC Courses - Found ${courses.length} courses for LIC ${req.user._id}`);
 
     res.json({
       success: true,
       data: courses
     });
   } catch (error) {
-    console.error('❌ LIC courses fetch error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching courses',
@@ -82,32 +76,6 @@ router.get('/staff', async (req, res) => {
   }
 });
 
-// @route   GET /api/lic/hall-availability
-// @desc    Get hall or lab availability for a selected time slot
-// @access  LIC only
-router.get('/hall-availability', async (req, res) => {
-  try {
-    const availability = await getHallAvailability({
-      day: req.query.day,
-      startTime: req.query.startTime,
-      endTime: req.query.endTime,
-      type: req.query.type,
-      location: req.query.location,
-      batchId: req.query.batchId
-    });
-
-    res.json({
-      success: true,
-      data: availability
-    });
-  } catch (error) {
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || 'Error fetching hall availability'
-    });
-  }
-});
-
 // @route   PUT /api/lic/courses/:id/instructors
 // @desc    Assign instructors to course (max 3, priority based)
 // @access  LIC only
@@ -128,17 +96,23 @@ router.put('/courses/:id/instructors', [
 
     const { instructors } = req.body;
 
-    // Verify course belongs to this LIC
     const course = await Course.findOne({
       _id: req.params.id,
-      lic: req.user._id,
       isActive: true
     });
 
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found or you are not authorized'
+        message: 'Course not found'
+      });
+    }
+
+    const allowed = await userOwnsLicCourse(req.user, course);
+    if (!allowed) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not the LIC for this course'
       });
     }
 
