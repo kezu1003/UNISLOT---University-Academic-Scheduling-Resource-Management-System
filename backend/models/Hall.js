@@ -33,6 +33,11 @@ const hallSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  maintenanceIssue: {
+    type: String,
+    trim: true,
+    default: ''
   }
 }, {
   timestamps: true

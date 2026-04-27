@@ -509,6 +509,100 @@ router.get('/halls', async (req, res) => {
   }
 });
 
+// @route   PUT /api/admin/halls/:id
+// @desc    Update hall details
+// @access  Admin only
+router.put('/halls/:id', [
+  body('hallName').optional().notEmpty().withMessage('Hall name is required'),
+  body('capacity').optional().isInt({ min: 1 }).withMessage('Capacity must be at least 1'),
+  body('location').optional().isIn(['Malabe', 'Metro', 'Matara', 'Kandy', 'Kurunegala', 'Jaffna']).withMessage('Invalid location'),
+  body('type').optional().isIn(['Lecture Hall', 'Lab', 'Tutorial Room']).withMessage('Invalid hall type'),
+  body('facilities').optional().isArray(),
+  body('facilities.*').optional().isIn(['Projector', 'AC', 'Computers', 'Whiteboard', 'Sound System'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const hall = await Hall.findById(req.params.id);
+    if (!hall) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hall not found'
+      });
+    }
+
+    const update = { ...req.body };
+    if (update.hallCode) {
+      update.hallCode = String(update.hallCode).toUpperCase().trim();
+    }
+
+    Object.assign(hall, update);
+    await hall.save();
+
+    res.json({
+      success: true,
+      data: hall
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hall with this code already exists'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Error updating hall',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/admin/halls/:id
+// @desc    Mark hall as removed for maintenance
+// @access  Admin only
+router.delete('/halls/:id', async (req, res) => {
+  try {
+    const hall = await Hall.findById(req.params.id);
+    if (!hall) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hall not found'
+      });
+    }
+
+    const maintenanceIssue = String(req.body.maintenanceIssue || '').trim();
+    if (!maintenanceIssue) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maintenance issue is required'
+      });
+    }
+
+    hall.isActive = false;
+    hall.maintenanceIssue = maintenanceIssue;
+    await hall.save();
+
+    res.json({
+      success: true,
+      message: 'Hall marked as removed for maintenance',
+      data: hall
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error marking hall for maintenance',
+      error: error.message
+    });
+  }
+});
+
 // ==================== COURSE MANAGEMENT ====================
 
 function normalizeCoursePayload(body) {
