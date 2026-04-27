@@ -606,7 +606,7 @@ const TimetableScheduler = () => {
   if (error) {
     return (
       <div className="error-container">
-        <FiAlertCircle size={48} />
+        <FiAlertCircle size={47} />
         <h3>Error Loading Data</h3>
         <p>{error}</p>
         <button onClick={fetchData} className="retry-btn">
